@@ -2,16 +2,14 @@ import Data.Time.Clock
 import Data.Time.Calendar
 import Data.Time (UTCTime, getCurrentTime)
 
-MyDate (x,y,z) == MyDate (a,b,c) = x Prelude.== a && b Prelude.== y && c Prelude.== z
+newtype MyDate = MyDate (Integer, Int, Int) deriving Show
+
+instance Eq MyDate where
+MyDate x == MyDate y = x Prelude.== y
 
 parseDate :: String -> MyDate
 parseDate x = let y:m:d:xs = map Prelude.read $ words x 
 	   in MyDate (y, fromIntegral m, fromIntegral d)
-
-newtype MyDate = MyDate (Integer, Int, Int) deriving Show
-
-testParseDate :: String -> MyDate -> Bool
-testParseDate s d = d Main.== parseDate s
 
 currentDate :: IO MyDate
 currentDate = getCurrentTime >>= return . MyDate . toGregorian . utctDay
@@ -42,7 +40,3 @@ main = do
 	newBreak <- getNewValue break
 
 	print $ filter (not . (isSelectedDate date)) $ lines s
-
-	return ()
-	
-	
