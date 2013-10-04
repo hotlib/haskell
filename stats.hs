@@ -192,8 +192,8 @@ tableSizeAndWritesSelect = "SELECT \
 		\limit 5"
 
 myConnection :: ConnectInfo
-myConnection = defaultConnectInfo {connectHost = "192.168.10.144", connectPort = 5432,
-					 connectUser = "postgres", connectPassword = "postgres", connectDatabase = "common"}
+myConnection = defaultConnectInfo {connectHost = "xxx.xxx.xxx.xxx", connectPort = 5432,
+					 connectUser = "xxx", connectPassword = "xxx", connectDatabase = "xxx"}
 
 pgRunQuery :: (FromRow r, Show r) =>  Query -> IO [r]
 pgRunQuery queryString = do 
