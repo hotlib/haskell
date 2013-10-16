@@ -4,16 +4,28 @@ import Database.PostgreSQL.Simple
 import Data.Time.Clock (UTCTime)
 import Text.PrettyPrint.ANSI.Leijen
 
-type TableSizeAndWritesSelectResult = (String, String, Int)
+type TableSizeAndWritesSelectResult = (String, String, Maybe Int)
 type LeastUsedIndexesResult = (String, Int, Int)
 type SharredBufferTableResult = (String, Int)
 type SharredBufferOverallResult = (Int, Int, Double)
-type UnusedIndexesResult = (String, String, Int, String, String, Int)
+type UnusedIndexesResult = (String, String, Int, String, String, Maybe Int)
 type LastAnalyzedAndVacuumedResult = (String, Maybe UTCTime, Maybe UTCTime, Maybe UTCTime, Maybe UTCTime)
 type TransactionStuckResult = (Bool, Maybe UTCTime, String, Maybe UTCTime, Maybe UTCTime)
 type FindLongestTransactionResult = (Only Double)
 type FindLongestQueryResult = (Double, String)
-type MostAccessedTableResult = (String, Int, Int, Int)
+type MostAccessedTableResult = (String, Int, Maybe Int, Maybe Int)
+type BiggestTableResult = (String, String)
+
+
+biggestTableText :: Doc
+biggestTableText = text "(table, size)"
+
+biggestTableSelect :: Query
+biggestTableSelect = "SELECT \
+		\table_schema || '.' ||table_name AS schema_table, \
+		\pg_size_pretty(pg_relation_size(table_name)) as table_size \
+		\FROM information_schema.tables WHERE table_schema NOT IN ('pg_catalog', 'information_schema') \
+		\ORDER BY table_size DESC LIMIT 5"
 
 mostAccessedTableText :: Doc
 mostAccessedTableText = text "(table, index + sequential scans, % of index hits, % of write accesses)"
@@ -22,21 +34,21 @@ mostAccessedTableSelect :: Query
 mostAccessedTableSelect = "SELECT \
 				\schemaname || '.' || relname AS schema_table, \
 				\COALESCE(idx_scan + seq_scan, seq_scan, idx_scan) as scans, \
-				\100 * idx_scan / COALESCE(idx_scan + seq_scan, seq_scan,idx_scan) AS index_hit_avg, \
+				\100 * idx_scan / NULLIF(COALESCE(idx_scan + seq_scan, seq_scan,idx_scan), 0) AS index_hit_avg, \
 				\100 * COALESCE( \
 				\n_tup_ins + n_tup_del + n_tup_upd, \
 				\n_tup_ins + n_tup_del, \
 				\n_tup_del + n_tup_upd, \
 				\n_tup_upd + n_tup_ins, \
 				\n_tup_ins, n_tup_upd, n_tup_del)/ \
-				\( \
+				\NULLIF(( \
 				\COALESCE(idx_scan + seq_scan,seq_scan,idx_scan) + \
 				\COALESCE( \
 				\n_tup_ins + n_tup_del + n_tup_upd, \
 				\n_tup_ins + n_tup_del, \
 				\n_tup_del + n_tup_upd, \
 				\n_tup_upd + n_tup_ins, \
-				\n_tup_ins, n_tup_upd, n_tup_del)) AS write_percentage \
+				\n_tup_ins, n_tup_upd, n_tup_del)), 0) AS write_percentage \
 				\FROM pg_stat_user_tables WHERE \
 				\(idx_scan IS NOT NULL OR seq_scan IS NOT NULL) \
 				\ORDER BY scans DESC LIMIT 5"
@@ -105,14 +117,14 @@ unusedIndexesSelect = "SELECT \
 	\pg_size_pretty(pg_total_relation_size(pg_index.schemaname || '.' || pg_index.relname)) AS table_size, \
 	\pg_size_pretty(pg_relation_size(quote_ident(indexrelname)::text)) AS index_size, \
 	\100 * COALESCE(pg_tables.idx_scan + seq_scan,seq_scan, pg_tables.idx_scan)/ \
-	\( \
+	\NULLIF(( \
 	\COALESCE(pg_tables.idx_scan + seq_scan, seq_scan, pg_tables.idx_scan) + \
 	\COALESCE( \
 	\n_tup_ins + n_tup_del + n_tup_upd, \
 	\n_tup_ins + n_tup_del, \
 	\n_tup_del + n_tup_upd, \
 	\n_tup_upd + n_tup_ins, \
-	\n_tup_ins, n_tup_upd, n_tup_del)) AS read_percentage \
+	\n_tup_ins, n_tup_upd, n_tup_del)),0) AS read_percentage \
 	\FROM pg_stat_user_indexes AS pg_index \
 	\JOIN pg_indexes ON (indexrelname = indexname AND pg_index.schemaname = pg_indexes.schemaname) \
 	\JOIN pg_stat_user_tables AS pg_tables ON (pg_index.relname = pg_tables.relname AND pg_index.schemaname = pg_tables.schemaname) \
@@ -172,14 +184,14 @@ tableSizeAndWritesSelect = "SELECT \
 		\n_tup_del + n_tup_upd, \
 		\n_tup_upd + n_tup_ins, \
 		\n_tup_ins, n_tup_upd, n_tup_del)/ \
-		\( \
+		\NULLIF(( \
 		\COALESCE(idx_scan + seq_scan,seq_scan,idx_scan) + \
 		\COALESCE( \
 		\n_tup_ins + n_tup_del + n_tup_upd, \
 		\n_tup_ins + n_tup_del, \
 		\n_tup_del + n_tup_upd, \
 		\n_tup_upd + n_tup_ins, \
-		\n_tup_ins, n_tup_upd, n_tup_del)) AS write_percentage \
+		\n_tup_ins, n_tup_upd, n_tup_del)), 0) AS write_percentage \
 		\FROM pg_class C \
 		\LEFT JOIN pg_namespace N ON (N.oid = C.relnamespace) \
 		\LEFT JOIN pg_stat_user_tables S ON (S.relname = C.relname) \
@@ -192,7 +204,7 @@ tableSizeAndWritesSelect = "SELECT \
 		\limit 5"
 
 myConnection :: ConnectInfo
-myConnection = defaultConnectInfo {connectHost = "xxx.xxx.xxx.xxx", connectPort = 5432,
+myConnection = defaultConnectInfo {connectHost = "xxx", connectPort = 5432,
 					 connectUser = "xxx", connectPassword = "xxx", connectDatabase = "xxx"}
 
 pgRunQuery :: (FromRow r, Show r) =>  Query -> IO [r]
@@ -210,6 +222,9 @@ pgPutDoc :: String -> Doc -> IO ()
 pgPutDoc caption doc = putDoc $ (text caption) <+> dullred doc <> linebreak 
 				
 main = do
+		pgPutDoc "TOP TABLES BY SIZE" biggestTableText
+		pgPrintResult ((pgRunQuery biggestTableSelect) :: IO [BiggestTableResult])
+
 		pgPutDoc "TOP ACCESSED TABLES" mostAccessedTableText
 		pgPrintResult ((pgRunQuery mostAccessedTableSelect) :: IO [MostAccessedTableResult])
 	
