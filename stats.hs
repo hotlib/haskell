@@ -5,6 +5,7 @@ import Data.Time.Clock (UTCTime)
 import Text.PrettyPrint.ANSI.Leijen
 import System.Console.GetOpt
 import System.Environment
+import Control.Monad.Reader 
 
 type TableSizeAndWritesSelectResult = (String, String, Maybe Int)
 type LeastUsedIndexesResult = (String, Int, Int)
@@ -17,6 +18,10 @@ type FindLongestTransactionResult = (Only Double)
 type FindLongestQueryResult = (Double, String)
 type MostAccessedTableResult = (String, Int, Maybe Int, Maybe Int)
 type BiggestTableResult = (String, String)
+
+type PgConnection r = ReaderT ConnectInfo IO r 
+
+data PgArguments = Ip String | DbName String | Username String | Password String
 
 
 biggestTableText :: Doc
@@ -205,23 +210,26 @@ tableSizeAndWritesSelect = "SELECT \
 		\ORDER BY write_percentage DESC \
 		\limit 5"
 
-pgRunQuery :: (FromRow r, Show r) => ConnectInfo -> Query -> IO [r]
-pgRunQuery connection queryString = do 
-	conn <- connect connection
-  	query_ conn queryString 
 
-pgPrintResult :: (FromRow r, Show r) => IO [r] -> IO ()
-pgPrintResult query  = do 
-			result <- query
-			putDoc $ text "Results:" <+> align (vsep $ decorate result) <> linebreak <> linebreak
+pgRunQuery :: (FromRow r, Show r) => Query -> PgConnection [r]
+pgRunQuery queryString = do 
+	connection <- ask
+	conn <- (liftIO $ connect connection)
+  	liftIO $ query_ conn queryString
+
+
+pgPrintResult :: (FromRow r, Show r) => [r] -> PgConnection ()
+pgPrintResult result = do 
+			liftIO $ putDoc $ text "Results:" <+> align (vsep $ decorate result) <> linebreak <> linebreak
 			where decorate = fmap (red . text . show)
 
-pgPutDoc :: String -> Doc -> IO ()
-pgPutDoc caption doc = putDoc $ (text caption) <+> dullred doc <> linebreak 
+
+pgPutDoc :: String -> Doc -> PgConnection ()
+pgPutDoc caption doc = liftIO $ putDoc $ (text caption) <+> dullred doc <> linebreak 
+
 		
 header progName = "Usage: " ++ progName ++ " [OPTION...]"
 
-data PgArguments = Ip String | DbName String | Username String | Password String
 
 options :: [OptDescr PgArguments]
 options = [
@@ -253,44 +261,57 @@ evalArgs = do
 	 	unrecognizedArgs nonOpts = "unrecognized arguments: " ++ unwords nonOpts
 
 
-runScripts :: ConnectInfo -> IO ()
-runScripts c = do
+
+runScripts :: PgConnection ()
+runScripts = do
 	pgPutDoc "TOP TABLES BY SIZE" biggestTableText
-	pgPrintResult ((pgRunQuery c biggestTableSelect) :: IO [BiggestTableResult])
+	bt <- (pgRunQuery biggestTableSelect) :: PgConnection [BiggestTableResult]
+	pgPrintResult bt
 
 	pgPutDoc "TOP ACCESSED TABLES" mostAccessedTableText
-	pgPrintResult ((pgRunQuery c mostAccessedTableSelect) :: IO [MostAccessedTableResult])
+	ma <- (pgRunQuery mostAccessedTableSelect) :: PgConnection [MostAccessedTableResult]
+	pgPrintResult ma 
 	
 	pgPutDoc "TABLES WITH WORST BUFFER HIT AVERAGE" sharredBufferTableText
-	pgPrintResult ((pgRunQuery c sharredBufferTableSelect) :: IO [SharredBufferTableResult])
+	sb <- (pgRunQuery sharredBufferTableSelect) :: PgConnection [SharredBufferTableResult]
+	pgPrintResult sb 
 
 	pgPutDoc "BIGGEST TABLES WHERE INDEX SCANS ARE LESS THAN 80%" leastUsedIndexesText   
-	pgPrintResult ((pgRunQuery c leastUsedIndexesSelect) :: IO [LeastUsedIndexesResult])
+	lu <- (pgRunQuery leastUsedIndexesSelect) :: PgConnection [LeastUsedIndexesResult]
+	pgPrintResult lu 
 		
 	pgPutDoc "TOP WRITE-INTENSIVE TABLES" tableSizeAndWritesText   
-	pgPrintResult ((pgRunQuery c tableSizeAndWritesSelect) :: IO [TableSizeAndWritesSelectResult])
+	tsaw <- (pgRunQuery tableSizeAndWritesSelect) :: PgConnection [TableSizeAndWritesSelectResult]
+	pgPrintResult tsaw 
 
 	pgPutDoc "AVG. BUFFER HIT RATIO OVER DATABASE" sharredBufferOverallText 
-	pgPrintResult ((pgRunQuery c sharredBufferOverallSelect) :: IO [SharredBufferOverallResult])
+	sbo <- (pgRunQuery sharredBufferOverallSelect) :: PgConnection [SharredBufferOverallResult]
+	pgPrintResult sbo
 		
 	pgPutDoc "LEAST ACCESSED INDEXES IN DATABASE" unusedIndexesText 
-	pgPrintResult ((pgRunQuery c unusedIndexesSelect) :: IO [UnusedIndexesResult])
+	ui <- (pgRunQuery unusedIndexesSelect) :: PgConnection [UnusedIndexesResult]
+	pgPrintResult ui
 		
 	pgPutDoc "POTENTIALLY STUCK TRANSACTIONS" transactionStuckText 
-	pgPrintResult ((pgRunQuery c transactionStuckSelect) :: IO [TransactionStuckResult])
+	ts <- (pgRunQuery transactionStuckSelect) :: PgConnection [TransactionStuckResult]
+	pgPrintResult ts 
 
 	pgPutDoc "LONGEST RUNNING TRANSACTION IN SECONDS" findLongestTransactionText 
-	pgPrintResult ((pgRunQuery c findLongestTransactionSelect) :: IO [FindLongestTransactionResult])
+	flt <- (pgRunQuery findLongestTransactionSelect) :: PgConnection [FindLongestTransactionResult]
+	pgPrintResult flt 
 
 	pgPutDoc "LONGEST RUNNING QUERIES" findLongestQueryText 
-	pgPrintResult ((pgRunQuery c findLongestQuerySelect) :: IO [FindLongestQueryResult])
+	flq <- (pgRunQuery findLongestQuerySelect) :: PgConnection [FindLongestQueryResult]
+	pgPrintResult flq
 	
 	pgPutDoc "UNVACUUMED OR UNANALYZED TABLES (OLDER THAN 14 DAYS)" lastAnalyzedAndVacuumedText
-	pgPrintResult ((pgRunQuery c lastAnalyzedAndVacuumedSelect) :: IO [LastAnalyzedAndVacuumedResult])
+	laav <- (pgRunQuery lastAnalyzedAndVacuumedSelect) :: PgConnection [LastAnalyzedAndVacuumedResult]
+	pgPrintResult laav
+
 
 main = do
-	c <- evalArgs
-	case c of
-		(Just connection) -> runScripts connection
-		Nothing -> return ()
-
+        c <- evalArgs
+        case c of
+        	(Just connection) -> runReaderT runScripts connection
+        	Nothing -> return ()
+	
