@@ -4,6 +4,7 @@ import Text.Parsec
 import Text.ParserCombinators.Parsec hiding (try)
 import Control.Applicative hiding (many, (<|>))
 import Control.Monad
+import qualified Data.Set as Set
 
 data SvnEntry = SvnEntry { getMessage :: String, getId::Int, getName :: String, getDate :: SvnDate, getSvnActions::[SvnAction] } deriving( Show ) 
 data SvnAction = SvnAction { getAction :: Char, getPath :: String} deriving( Show ) 
@@ -29,7 +30,7 @@ svnDate = SvnDate
 svnEntry ::  Parser SvnEntry
 svnEntry = SvnEntry 
 	<$> (manyTill anyChar (try brakeline)) 
-	<*> (many (oneOf "-\n\rr") >> many1 digit >>= (\n -> return (read n))) 
+	<*> (many (oneOf "-\n\rr") >> many1 digit >>= (return . read)) 
 	<*> (separator >> many1 alphaNum) 
 	<*> (separator >> svnDate)		
  	<*> (skipSomePart >> manyTill svnChanges ( choice [try newnewline, try myEof]))   
@@ -40,10 +41,44 @@ svnEntry = SvnEntry
  		myEof = (eof >>= \xx -> return "eof") :: Parser String
  		brakeline = string "----------"
 
+
+uniqueCommiters :: [SvnEntry] -> [String]
+uniqueCommiters xs = Set.toList $ foldl (\acc x -> (Set.insert (getName x) acc)) Set.empty xs
+
+totalCommits :: (String -> SvnEntry -> Bool) -> [SvnEntry] -> String -> (String, Int)
+totalCommits f xs p = (p, length $ filter (f p) xs)
+	
+nameCommitFilter :: String -> SvnEntry -> Bool
+nameCommitFilter name x = (==) name $ getName x
+
+timeCommitFilter :: String -> SvnEntry -> Bool
+timeCommitFilter name x = (name == getName x) && (21 < hour x || 6 > hour x) 
+	where hour = getHour . getDate
+
+weekendCommitFilter :: String -> SvnEntry -> Bool
+weekendCommitFilter name x = (name == getName x) && ("Sat" == day x || "Sun" == day x) 
+	where day = getDayName . getDate
+
+printStats :: [SvnEntry] -> IO ()
+printStats xs = do
+	let commiters = uniqueCommiters xs
+	print "Weekend commits:" 
+	print $ moreThen0Filter $ weekendCommits xs commiters
+	print "Total commits:" 
+	print $ overallCommits xs commiters
+	print "Commits between 22:00 and 05:00" 
+	print $ moreThen0Filter $ nightCommits xs commiters
+	where
+		moreThen0Filter = filter (\(n, i) -> i > 0)
+		weekendCommits xs = map (totalCommits weekendCommitFilter xs) 
+		overallCommits xs = map (totalCommits nameCommitFilter xs) 
+		nightCommits xs = map (totalCommits timeCommitFilter xs) 
+
 main :: IO ()
 main = do
-	 	
-	 	s <- readFile "svn_test.log"
-	 	let a = parse (many svnEntry) "test" s
-	 	print a
-	 	
+	s <- readFile "svn_test.log"
+	case parse (many svnEntry) "test" s of
+		(Right xs) -> printStats xs
+		(Left b) -> print b
+		
+
