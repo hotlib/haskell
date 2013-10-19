@@ -39,26 +39,26 @@ mostAccessedTableText = text "(table, index + sequential scans, % of index hits,
 
 mostAccessedTableSelect :: Query
 mostAccessedTableSelect = "SELECT \
-				\schemaname || '.' || relname AS schema_table, \
-				\COALESCE(idx_scan + seq_scan, seq_scan, idx_scan) as scans, \
-				\100 * idx_scan / NULLIF(COALESCE(idx_scan + seq_scan, seq_scan,idx_scan), 0) AS index_hit_avg, \
-				\100 * COALESCE( \
-				\n_tup_ins + n_tup_del + n_tup_upd, \
-				\n_tup_ins + n_tup_del, \
-				\n_tup_del + n_tup_upd, \
-				\n_tup_upd + n_tup_ins, \
-				\n_tup_ins, n_tup_upd, n_tup_del)/ \
-				\NULLIF(( \
-				\COALESCE(idx_scan + seq_scan,seq_scan,idx_scan) + \
-				\COALESCE( \
-				\n_tup_ins + n_tup_del + n_tup_upd, \
-				\n_tup_ins + n_tup_del, \
-				\n_tup_del + n_tup_upd, \
-				\n_tup_upd + n_tup_ins, \
-				\n_tup_ins, n_tup_upd, n_tup_del)), 0) AS write_percentage \
-				\FROM pg_stat_user_tables WHERE \
-				\(idx_scan IS NOT NULL OR seq_scan IS NOT NULL) \
-				\ORDER BY scans DESC LIMIT 5"
+	\schemaname || '.' || relname AS schema_table, \
+	\COALESCE(idx_scan + seq_scan, seq_scan, idx_scan) as scans, \
+	\100 * idx_scan / NULLIF(COALESCE(idx_scan + seq_scan, seq_scan,idx_scan), 0) AS index_hit_avg, \
+	\100 * COALESCE( \
+	\n_tup_ins + n_tup_del + n_tup_upd, \
+	\n_tup_ins + n_tup_del, \
+	\n_tup_del + n_tup_upd, \
+	\n_tup_upd + n_tup_ins, \
+	\n_tup_ins, n_tup_upd, n_tup_del)/ \
+	\NULLIF(( \
+	\COALESCE(idx_scan + seq_scan,seq_scan,idx_scan) + \
+	\COALESCE( \
+	\n_tup_ins + n_tup_del + n_tup_upd, \
+	\n_tup_ins + n_tup_del, \
+	\n_tup_del + n_tup_upd, \
+	\n_tup_upd + n_tup_ins, \
+	\n_tup_ins, n_tup_upd, n_tup_del)), 0) AS write_percentage \
+	\FROM pg_stat_user_tables WHERE \
+	\(idx_scan IS NOT NULL OR seq_scan IS NOT NULL) \
+	\ORDER BY scans DESC LIMIT 5"
 
 
 findLongestQueryText :: Doc
@@ -66,52 +66,52 @@ findLongestQueryText = text "(query time in seconds, query)"
 
 findLongestQuerySelect :: Query
 findLongestQuerySelect = "SELECT \
-						\COALESCE(extract(epoch FROM CURRENT_TIMESTAMP-query_start),0) AS query_time_in_seconds, \
-						\current_query FROM pg_stat_activity WHERE current_query NOT LIKE '<IDLE%' \
-						\GROUP BY query_time_in_seconds, current_query \
-						\ORDER BY query_time_in_seconds DESC \
-						\LIMIT 3"
+	\COALESCE(extract(epoch FROM CURRENT_TIMESTAMP-query_start),0) AS query_time_in_seconds, \
+	\current_query FROM pg_stat_activity WHERE current_query NOT LIKE '<IDLE%' \
+	\GROUP BY query_time_in_seconds, current_query \
+	\ORDER BY query_time_in_seconds DESC \
+	\LIMIT 3"
 
 findLongestTransactionText :: Doc
 findLongestTransactionText = text "(transaction time in seconds)"
 
 findLongestTransactionSelect :: Query
 findLongestTransactionSelect = "SELECT \
-							\COALESCE(max(extract(epoch FROM CURRENT_TIMESTAMP-xact_start)),0) AS transaction_time_in_seconds \
-							\FROM pg_stat_activity \
-							\ORDER BY transaction_time_in_seconds DESC \
-							\LIMIT 3"
+	\COALESCE(max(extract(epoch FROM CURRENT_TIMESTAMP-xact_start)),0) AS transaction_time_in_seconds \
+	\FROM pg_stat_activity \
+	\ORDER BY transaction_time_in_seconds DESC \
+	\LIMIT 3"
 
 transactionStuckText :: Doc
 transactionStuckText = text "(is transaction waiting, start of transaction, current query in transaction, start of query, start of connection)"
 
 transactionStuckSelect :: Query
 transactionStuckSelect = "SELECT \
-						\waiting, \
-						\xact_start, \
-						\current_query, \ 
-						\query_start, \
-						\backend_start \
-						\FROM pg_stat_activity WHERE \
-						\(current_query = '<IDLE> in transaction' OR waiting = TRUE) \
-						\AND (xact_start < (now()::DATE - interval '20 minute')::TIMESTAMP)"
+	\waiting, \
+	\xact_start, \
+	\current_query, \ 
+	\query_start, \
+	\backend_start \
+	\FROM pg_stat_activity WHERE \
+	\(current_query = '<IDLE> in transaction' OR waiting = TRUE) \
+	\AND (xact_start < (now()::DATE - interval '20 minute')::TIMESTAMP)"
 
 lastAnalyzedAndVacuumedText :: Doc
 lastAnalyzedAndVacuumedText = text "(table, last vaccumed, last auto-vacuumed, last analyzed, last auto-analyzed)"
 
 lastAnalyzedAndVacuumedSelect :: Query
 lastAnalyzedAndVacuumedSelect = "SELECT \
-				\schemaname || '.' || relname AS schema_table, \
-				\last_vacuum, \
-				\last_autovacuum, \
-				\last_analyze, \
-				\last_autoanalyze \
-				\FROM pg_stat_all_tables \
-				\WHERE NOT \
-				\((last_vacuum > (now()::DATE - 14)::TIMESTAMP OR last_autovacuum > (now()::DATE - 14)::TIMESTAMP) \
-	            \AND (last_analyze > (now()::DATE - 14)::TIMESTAMP OR last_autoanalyze > (now()::DATE - 14)::TIMESTAMP)) \
-	  			\OR (last_autovacuum IS NULL AND last_vacuum IS NULL) \
-				\OR (last_analyze IS NULL AND last_autoanalyze IS NULL)"
+	\schemaname || '.' || relname AS schema_table, \
+	\last_vacuum, \
+	\last_autovacuum, \
+	\last_analyze, \
+	\last_autoanalyze \
+	\FROM pg_stat_all_tables \
+	\WHERE NOT \
+	\((last_vacuum > (now()::DATE - 14)::TIMESTAMP OR last_autovacuum > (now()::DATE - 14)::TIMESTAMP) \
+	\AND (last_analyze > (now()::DATE - 14)::TIMESTAMP OR last_autoanalyze > (now()::DATE - 14)::TIMESTAMP)) \
+	\OR (last_autovacuum IS NULL AND last_vacuum IS NULL) \
+	\OR (last_analyze IS NULL AND last_autoanalyze IS NULL)"
 
 unusedIndexesText :: Doc
 unusedIndexesText = text "(table, index name, index scans, size of table, size of index, % of read accesses)"
@@ -145,70 +145,70 @@ sharredBufferOverallText = text "(disk reads for non-indexed data, sharred buffe
 
 sharredBufferOverallSelect :: Query
 sharredBufferOverallSelect = "SELECT \ 
-			\sum(heap_blks_read) :: BigInt as heap_read, \
-            \sum(heap_blks_hit) :: BigInt as heap_hit, \
-            \sum(heap_blks_hit) / (sum(heap_blks_hit) + sum(heap_blks_read)) :: Float as buffer_avg \
-    		\FROM pg_statio_user_tables"
+	\sum(heap_blks_read) :: BigInt as heap_read, \
+    \sum(heap_blks_hit) :: BigInt as heap_hit, \
+    \sum(heap_blks_hit) / (sum(heap_blks_hit) + sum(heap_blks_read)) :: Float as buffer_avg \
+    \FROM pg_statio_user_tables"
 
 sharredBufferTableText :: Doc
 sharredBufferTableText = text "(table, % of sharred buffer hits)"
 
 sharredBufferTableSelect :: Query
 sharredBufferTableSelect = "SELECT \  
-				\schemaname || '.' || relname AS schema_table, \ 
-				\100 * heap_blks_hit/(heap_blks_hit + heap_blks_read) as cache_hit_avg \
-				\FROM pg_statio_user_tables \
-				\WHERE \
-				\heap_blks_read > 0 \
-				\ORDER BY cache_hit_avg ASC \
-				\LIMIT 5"
+	\schemaname || '.' || relname AS schema_table, \ 
+	\100 * heap_blks_hit/(heap_blks_hit + heap_blks_read) as cache_hit_avg \
+	\FROM pg_statio_user_tables \
+	\WHERE \
+	\heap_blks_read > 0 \
+	\ORDER BY cache_hit_avg ASC \
+	\LIMIT 5"
 
 leastUsedIndexesText :: Doc
 leastUsedIndexesText = text "(table, % of index scans, rows in table) "
 
 leastUsedIndexesSelect :: Query
 leastUsedIndexesSelect = "SELECT \
-				 \schemaname || '.' || relname AS schema_table, \ 
-                 \100 * idx_scan / (seq_scan + idx_scan) AS index_hit_avg, \
-                 \n_live_tup AS rows_in_table \
-                 \FROM pg_stat_user_tables \
-                 \WHERE \
-                 \seq_scan + idx_scan > 0 AND \
-                 \100 * idx_scan / (seq_scan + idx_scan) < 80 \
-    			 \ORDER BY n_live_tup DESC, index_hit_avg DESC \
-    			 \LIMIT 5" 
+	\schemaname || '.' || relname AS schema_table, \ 
+    \100 * idx_scan / (seq_scan + idx_scan) AS index_hit_avg, \
+    \n_live_tup AS rows_in_table \
+    \FROM pg_stat_user_tables \
+    \WHERE \
+    \seq_scan + idx_scan > 0 AND \
+    \100 * idx_scan / (seq_scan + idx_scan) < 80 \
+    \ORDER BY n_live_tup DESC, index_hit_avg DESC \
+    \LIMIT 5" 
 
 tableSizeAndWritesText :: Doc
 tableSizeAndWritesText = text "(table, size of table (without indexes), % of write accesses) "
 
 tableSizeAndWritesSelect :: Query
 tableSizeAndWritesSelect = "SELECT \
-		\nspname || '.' || C.relname AS schema_table, \
-		\pg_size_pretty(pg_total_relation_size(C.oid)) AS total_size, \
-		\100 * COALESCE( \
-		\n_tup_ins + n_tup_del + n_tup_upd, \
-		\n_tup_ins + n_tup_del, \
-		\n_tup_del + n_tup_upd, \
-		\n_tup_upd + n_tup_ins, \
-		\n_tup_ins, n_tup_upd, n_tup_del)/ \
-		\NULLIF(( \
-		\COALESCE(idx_scan + seq_scan,seq_scan,idx_scan) + \
-		\COALESCE( \
-		\n_tup_ins + n_tup_del + n_tup_upd, \
-		\n_tup_ins + n_tup_del, \
-		\n_tup_del + n_tup_upd, \
-		\n_tup_upd + n_tup_ins, \
-		\n_tup_ins, n_tup_upd, n_tup_del)), 0) AS write_percentage \
-		\FROM pg_class C \
-		\LEFT JOIN pg_namespace N ON (N.oid = C.relnamespace) \
-		\LEFT JOIN pg_stat_user_tables S ON (S.relname = C.relname) \
-		\WHERE nspname NOT IN ('pg_catalog', 'information_schema') \
-		\AND C.relkind <> 'i' \
-		\AND nspname !~ '^pg_toast' \
-		\AND (n_tup_ins IS NOT NULL OR n_tup_upd IS NOT NULL OR n_tup_del IS NOT NULL) \
-		\AND (idx_scan IS NOT NULL OR seq_scan IS NOT NULL) \
-		\ORDER BY write_percentage DESC \
-		\limit 5"
+	\nspname || '.' || C.relname AS schema_table, \
+	\pg_size_pretty(pg_total_relation_size(C.oid)) AS total_size, \
+	\100 * COALESCE( \
+	\n_tup_ins + n_tup_del + n_tup_upd, \
+	\n_tup_ins + n_tup_del, \
+	\n_tup_del + n_tup_upd, \
+	\n_tup_upd + n_tup_ins, \
+	\n_tup_ins, n_tup_upd, n_tup_del)/ \
+	\NULLIF(( \
+	\COALESCE(idx_scan + seq_scan,seq_scan,idx_scan) + \
+	\COALESCE( \
+	\n_tup_ins + n_tup_del + n_tup_upd, \
+	\n_tup_ins + n_tup_del, \
+	\n_tup_del + n_tup_upd, \
+	\n_tup_upd + n_tup_ins, \
+	\n_tup_ins, n_tup_upd, n_tup_del)), 0) AS write_percentage \
+	\FROM pg_class C \
+	\LEFT JOIN pg_namespace N ON (N.oid = C.relnamespace) \
+	\LEFT JOIN pg_stat_user_tables S ON (S.relname = C.relname) \
+	\WHERE nspname NOT IN ('pg_catalog', 'information_schema') \
+	\AND C.relkind <> 'i' \
+	\AND nspname !~ '^pg_toast' \
+	\AND (n_tup_ins IS NOT NULL OR n_tup_upd IS NOT NULL OR n_tup_del IS NOT NULL) \
+	\AND (idx_scan IS NOT NULL OR seq_scan IS NOT NULL) \
+	\ORDER BY write_percentage DESC \
+	\limit 5"
 
 
 pgRunQuery :: (FromRow r, Show r) => Query -> PgConnection [r]
@@ -220,8 +220,8 @@ pgRunQuery queryString = do
 
 pgPrintResult :: (FromRow r, Show r) => [r] -> PgConnection ()
 pgPrintResult result = do 
-			liftIO $ putDoc $ text "Results:" <+> align (vsep $ decorate result) <> linebreak <> linebreak
-			where decorate = fmap (red . text . show)
+	liftIO $ putDoc $ text "Results:" <+> align (vsep $ decorate result) <> linebreak <> linebreak
+	where decorate = fmap (red . text . show)
 
 
 pgPutDoc :: String -> Doc -> PgConnection ()
@@ -245,6 +245,7 @@ modifyConnection connection (DbName name) = connection {connectDatabase = name}
 modifyConnection connection  (Username user) = connection {connectUser = user}
 modifyConnection connection (Password password) = connection {connectPassword = password}
 
+-- TODO change this hideous function
 evalArgs :: IO ( Maybe ConnectInfo )
 evalArgs = do
 	args <- getArgs
