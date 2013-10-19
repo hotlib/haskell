@@ -265,49 +265,40 @@ evalArgs = do
 
 runScripts :: PgConnection ()
 runScripts = do
+	let runAndPrintQuery q = q >>= pgPrintResult
+
 	pgPutDoc "TOP TABLES BY SIZE" biggestTableText
-	bt <- (pgRunQuery biggestTableSelect) :: PgConnection [BiggestTableResult]
-	pgPrintResult bt
+	runAndPrintQuery ((pgRunQuery biggestTableSelect) :: PgConnection [BiggestTableResult]) 
 
 	pgPutDoc "TOP ACCESSED TABLES" mostAccessedTableText
-	ma <- (pgRunQuery mostAccessedTableSelect) :: PgConnection [MostAccessedTableResult]
-	pgPrintResult ma 
-	
-	pgPutDoc "TABLES WITH WORST BUFFER HIT AVERAGE" sharredBufferTableText
-	sb <- (pgRunQuery sharredBufferTableSelect) :: PgConnection [SharredBufferTableResult]
-	pgPrintResult sb 
+	runAndPrintQuery ((pgRunQuery mostAccessedTableSelect) :: PgConnection [MostAccessedTableResult]) 
 
+	pgPutDoc "TABLES WITH WORST BUFFER HIT AVERAGE" sharredBufferTableText
+	runAndPrintQuery ((pgRunQuery sharredBufferTableSelect) :: PgConnection [SharredBufferTableResult]) 
+	
 	pgPutDoc "BIGGEST TABLES WHERE INDEX SCANS ARE LESS THAN 80%" leastUsedIndexesText   
-	lu <- (pgRunQuery leastUsedIndexesSelect) :: PgConnection [LeastUsedIndexesResult]
-	pgPrintResult lu 
-		
+	runAndPrintQuery ((pgRunQuery leastUsedIndexesSelect) :: PgConnection [LeastUsedIndexesResult]) 
+
 	pgPutDoc "TOP WRITE-INTENSIVE TABLES" tableSizeAndWritesText   
-	tsaw <- (pgRunQuery tableSizeAndWritesSelect) :: PgConnection [TableSizeAndWritesSelectResult]
-	pgPrintResult tsaw 
+	runAndPrintQuery ((pgRunQuery tableSizeAndWritesSelect) :: PgConnection [TableSizeAndWritesSelectResult]) 
 
 	pgPutDoc "AVG. BUFFER HIT RATIO OVER DATABASE" sharredBufferOverallText 
-	sbo <- (pgRunQuery sharredBufferOverallSelect) :: PgConnection [SharredBufferOverallResult]
-	pgPrintResult sbo
+	runAndPrintQuery ((pgRunQuery sharredBufferOverallSelect) :: PgConnection [SharredBufferOverallResult]) 
 		
 	pgPutDoc "LEAST ACCESSED INDEXES IN DATABASE" unusedIndexesText 
-	ui <- (pgRunQuery unusedIndexesSelect) :: PgConnection [UnusedIndexesResult]
-	pgPrintResult ui
-		
-	pgPutDoc "POTENTIALLY STUCK TRANSACTIONS" transactionStuckText 
-	ts <- (pgRunQuery transactionStuckSelect) :: PgConnection [TransactionStuckResult]
-	pgPrintResult ts 
+	runAndPrintQuery ((pgRunQuery unusedIndexesSelect) :: PgConnection [UnusedIndexesResult]) 
 
+	pgPutDoc "POTENTIALLY STUCK TRANSACTIONS" transactionStuckText 
+	runAndPrintQuery ((pgRunQuery transactionStuckSelect) :: PgConnection [TransactionStuckResult]) 
+	
 	pgPutDoc "LONGEST RUNNING TRANSACTION IN SECONDS" findLongestTransactionText 
-	flt <- (pgRunQuery findLongestTransactionSelect) :: PgConnection [FindLongestTransactionResult]
-	pgPrintResult flt 
+	runAndPrintQuery ((pgRunQuery findLongestTransactionSelect) :: PgConnection [FindLongestTransactionResult]) 
 
 	pgPutDoc "LONGEST RUNNING QUERIES" findLongestQueryText 
-	flq <- (pgRunQuery findLongestQuerySelect) :: PgConnection [FindLongestQueryResult]
-	pgPrintResult flq
-	
+	runAndPrintQuery ((pgRunQuery findLongestQuerySelect) :: PgConnection [FindLongestQueryResult]) 
+
 	pgPutDoc "UNVACUUMED OR UNANALYZED TABLES (OLDER THAN 14 DAYS)" lastAnalyzedAndVacuumedText
-	laav <- (pgRunQuery lastAnalyzedAndVacuumedSelect) :: PgConnection [LastAnalyzedAndVacuumedResult]
-	pgPrintResult laav
+	runAndPrintQuery ((pgRunQuery lastAnalyzedAndVacuumedSelect) :: PgConnection [LastAnalyzedAndVacuumedResult]) 
 
 
 main = do
