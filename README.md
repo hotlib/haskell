@@ -1,2 +1,3 @@
-haskell101
+Haskell projects
 ==========
+Smaller Haskell projects 
