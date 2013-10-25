@@ -5,6 +5,9 @@ import Text.ParserCombinators.Parsec hiding (try)
 import Control.Applicative hiding (many, (<|>))
 import Control.Monad
 import qualified Data.Set as Set
+import qualified Data.Map as Map
+import qualified Data.MultiSet as MultiSet
+import Data.List (sortBy, isInfixOf)
 
 data SvnEntry = SvnEntry { getMessage :: String, getId::Int, getName :: String, getDate :: SvnDate, getSvnActions::[SvnAction] } deriving( Show ) 
 data SvnAction = SvnAction { getAction :: Char, getPath :: String} deriving( Show ) 
@@ -74,11 +77,24 @@ printStats xs = do
 		overallCommits xs = map (totalCommits nameCommitFilter xs) 
 		nightCommits xs = map (totalCommits timeCommitFilter xs) 
 
+top15ChangedClasses :: [SvnEntry] -> IO ()
+top15ChangedClasses xs = do
+	print "Top 15 changed java classes: "
+	let top15 = (take 15 . sortByFrequency . filterJava . pathHistogram . allPaths) xs 
+	sequence_ $ fmap print top15
+	where 
+		allPaths = (map getPath) . join . (map getSvnActions)
+		pathHistogram = MultiSet.toOccurList . MultiSet.fromList
+		filterJava = filter (\(p, _) -> isInfixOf ".java" p)
+		sortByFrequency = sortBy (\(_, f1) (_, f2) -> compare f2 f1)
+
+updateMap map actions = foldl (\(xx,m) a -> (Map.insertLookupWithKey myInsert a 1 m)) map actions
+	where myInsert key new old = new + old 
+
+
 main :: IO ()
 main = do
 	s <- readFile "svn_test.log"
 	case parse (many svnEntry) "test" s of
-		(Right xs) -> printStats xs
+		(Right xs) -> printStats xs >> top15ChangedClasses xs 
 		(Left b) -> print b
-		
-
