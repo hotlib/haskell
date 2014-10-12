@@ -13,15 +13,15 @@ type Card = (Suit, Value)
 type Deck = [Card]
 type Hand = [Card]
 
-data CardEvaluation = HighCard Value Value Value Value Value 
-					| OnePair Value Value Value Value 
-					| TwoPair Value Value Value
-					| ThreeOfAKind Value Value Value 
-					| Straight Value Value Value Value Value 
-					| Flush Value Value Value Value Value
-					| FullHouse Value Value 
-					| FourOfAKind Value Value 
-					| StraightFlush Value deriving (Eq, Show, Ord)
+data HandEvaluation = HighCard [Value] 
+					| OnePair [Value] 
+					| TwoPair [Value]
+					| ThreeOfAKind [Value]
+					| Straight [Value] 
+					| Flush [Value]
+					| FullHouse [Value] 
+					| FourOfAKind [Value]
+					| StraightFlush [Value] deriving (Eq, Show, Ord)
 
 theDeck :: Deck
 theDeck = [(x, y) | x <- [Club .. Spade], y <- [Two .. Ace]]
@@ -35,43 +35,43 @@ cardCombinations n d = [ x | x <- mapM (const d) [1..n], (length . nub) x == n, 
 groupFreq :: Hand -> [Int]
 groupFreq h = map snd $ freq h
 
-fourOfAKind :: Hand -> Maybe CardEvaluation
+fourOfAKind :: Hand -> Maybe HandEvaluation
 fourOfAKind h 
-	| 4 `elem` (groupFreq h) = let [(val1, _), (val2, _)] = freq h in Just $ FourOfAKind val1 val2  
+	| 4 `elem` (groupFreq h) = Just . FourOfAKind $ map fst $ freq h  
 	| otherwise = Nothing
 
-fullHouse :: Hand -> Maybe CardEvaluation
+fullHouse :: Hand -> Maybe HandEvaluation
 fullHouse h  
-	| isPrefixOf [3,2] (groupFreq h) = let [(val1, _), (val2, _)] = freq h in Just $ FullHouse val1 val2  
+	| isPrefixOf [3,2] (groupFreq h) = Just . FullHouse $ map fst $ freq h  
 	| otherwise = Nothing
 
-threeOfAKind :: Hand -> Maybe CardEvaluation
+threeOfAKind :: Hand -> Maybe HandEvaluation
 threeOfAKind h  
-	| 3 `elem` (groupFreq h) = let [(val1, _), (val2, _), (val3, _)] = freq h in Just $ ThreeOfAKind val1 val2 val3 
+	| 3 `elem` (groupFreq h) = Just . ThreeOfAKind $ map fst $ freq h  
 	| otherwise = Nothing
 
-twoPairs :: Hand -> Maybe CardEvaluation
+twoPairs :: Hand -> Maybe HandEvaluation
 twoPairs h  
-	| isPrefixOf [2,2] (groupFreq h) = let [(val1, _), (val2, _), (val3, _)] = freq h in Just $ TwoPair val1 val2 val3 
+	| isPrefixOf [2,2] (groupFreq h) = Just . TwoPair $ map fst $ freq h 
 	| otherwise = Nothing
 
-onePair :: Hand -> Maybe CardEvaluation
+onePair :: Hand -> Maybe HandEvaluation
 onePair h  
-	| 2 `elem` (groupFreq h) = let [(val1, _), (val2, _), (val3, _), (val4, _)] = freq h in Just $ OnePair val1 val2 val3 val4
+	| 2 `elem` (groupFreq h) = Just . OnePair $ map fst $ freq h
 	| otherwise = Nothing
 
-highCard :: Hand -> Maybe CardEvaluation
-highCard h  = let [(val1, _), (val2, _), (val3, _), (val4, _), (val5, _)] = freq h in Just $ HighCard val1 val2 val3 val4 val5
+highCard :: Hand -> Maybe HandEvaluation
+highCard h  = Just . HighCard . reverse . sort $ map snd h
 
-straight :: Hand -> Maybe CardEvaluation
+straight :: Hand -> Maybe HandEvaluation
 straight h 
-	| isInfixOf valuesHand allValuesSorted = let [val1, val2, val3, val4, val5] = reverse valuesHand in Just $ Straight val1 val2 val3 val4 val5 -- TODO how to do it more haskell-y?
+	| isInfixOf valuesHand allValuesSorted = Just . Straight $ reverse valuesHand
 	| otherwise = Nothing
 	where 
 		allValuesSorted = [Two, Three, Four, Five, Six, Seven, Eight, Nine, Ten, Jack, Queen, King, Ace]
 		valuesHand = sort $ map snd h
 
-straightFlush :: Hand -> Maybe CardEvaluation
+straightFlush :: Hand -> Maybe HandEvaluation
 straightFlush h 
 	| sameSuit h = straight h
 	| otherwise = Nothing
@@ -80,18 +80,18 @@ sameSuit :: Hand -> Bool
 sameSuit h = all (== head values) values
 	where values = map fst h
 
-flush :: Hand -> Maybe CardEvaluation
+flush :: Hand -> Maybe HandEvaluation
 flush h
-	| sameSuit h = let [val1, val2, val3, val4, val5] = reverse . sort $ map snd h in Just $ Flush val1 val2 val3 val4 val5 
+	| sameSuit h = Just . Flush $ reverse . sort $ map snd h 
 	| otherwise = Nothing
 
-eval :: (Hand -> Maybe CardEvaluation) -> Hand -> Cont (Maybe CardEvaluation) (Maybe CardEvaluation)
+eval :: (Hand -> Maybe HandEvaluation) -> Hand -> Cont (Maybe HandEvaluation) (Maybe HandEvaluation)
 eval f h = let r = f h in 
 		if isJust r 
 		then cont $ \_ -> r 
 		else cont $ \k -> k r 
 	
-evaluateHand :: Hand -> Cont (Maybe CardEvaluation)  (Maybe CardEvaluation) 
+evaluateHand :: Hand -> Cont (Maybe HandEvaluation)  (Maybe HandEvaluation) 
 evaluateHand h = 
 	do
 		eval straightFlush h 
@@ -120,6 +120,11 @@ testHand = [(Club,Six),(Club,Two), (Club,Six),(Club,Four),(Club,Two)]
 testHand2 :: Hand
 testHand2 = [(Club,Five),(Club,Three), (Club,Six),(Club,Four),(Club,Two)]
 
+transform :: Hand -> HandEvaluation
+transform h = fromJust $ runCont (evaluateHand h) id
+
 main = do 
-	print $ runCont (evaluateHand testHand) id
-	-- print . length . cardCombinations 5 $ take 7 theDeck
+	print $ transform testHand
+	print $ onePair testHand
+	--- print . length . cardCombinations 5 $ take 7 theDeck
+	print $ map transform $ cardCombinations 5 $ take 12 theDeck 
