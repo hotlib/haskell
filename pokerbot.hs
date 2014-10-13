@@ -1,18 +1,15 @@
+{-# LANGUAGE TypeSynonymInstances, FlexibleInstances #-}
 
 import Data.List
 import Control.Applicative
 import Control.Monad.Trans.Cont
 import Data.Maybe 
+import Control.Monad.Reader
+import Control.Monad.Writer
 
 data Suit = Club | Diamond | Heart | Spade deriving (Eq, Show, Enum, Ord)
-
 data Value = Two | Three | Four | Five | Six | Seven | Eight | Nine | Ten | Jack | Queen | King | Ace  deriving (Eq, Show, Enum, Ord)
-
 type Card = (Suit, Value)
-
-type Deck = [Card]
-type Hand = [Card]
-
 data HandEvaluation = HighCard [Value] 
 					| OnePair [Value] 
 					| TwoPair [Value]
@@ -22,6 +19,44 @@ data HandEvaluation = HighCard [Value]
 					| FullHouse [Value] 
 					| FourOfAKind [Value]
 					| StraightFlush [Value] deriving (Eq, Show, Ord)
+
+type Deck = [Card]
+type Hand = [Card]
+type CommunityCards = [Card]
+type Money = Int 
+data BotAction = Fold | Call | Raise Int 
+
+data PokerBot = PokerBot { name :: String, runAction :: PokerAction } 
+data BotState = BotState {hand :: Hand, moneyLeft :: Money, investedInPot :: Money, callNeeded :: Money, pot :: Money, communityCards :: CommunityCards} deriving (Show)
+data TexasHoldemPoker = TexasHoldemPoker { bots :: [PokerBot], botStates :: [BotState], deck :: Deck}  deriving (Show)
+
+type PokerAction = Reader BotState BotAction 
+type GamePlay g = Writer String g 
+
+evalHand :: BotState -> [HandEvaluation]
+evalHand = undefined
+
+playBot :: PokerAction
+playBot = do
+	cards <- ask
+	return Fold
+
+playGame2 :: [PokerBot] -> (GamePlay TexasHoldemPoker)
+playGame2 bs = do	
+	tell "starting game; "
+	let gs = initGame []
+	gs
+
+instance Show PokerBot where
+  show b = "Bot: " ++ name b
+
+class PokerGame g where
+	initGame :: [PokerBot] -> g
+	round :: g -> g
+	
+instance PokerGame (GamePlay TexasHoldemPoker) where
+	initGame bs = writer (TexasHoldemPoker { botStates = [],  bots = [], deck = []}, "converted bots")
+	round = undefined
 
 theDeck :: Deck
 theDeck = [(x, y) | x <- [Club .. Spade], y <- [Two .. Ace]]
@@ -92,17 +127,16 @@ eval f h = let r = f h in
 		else cont $ \k -> k r 
 	
 evaluateHand :: Hand -> Cont (Maybe HandEvaluation)  (Maybe HandEvaluation) 
-evaluateHand h = 
-	do
-		eval straightFlush h 
-		eval fourOfAKind h
-		eval fullHouse h
-		eval flush h
-		eval straight h
-		eval threeOfAKind h
-		eval twoPairs h
-		eval onePair h
-		eval highCard h
+evaluateHand h = do
+	eval straightFlush h 
+	eval fourOfAKind h
+	eval fullHouse h
+	eval flush h
+	eval straight h
+	eval threeOfAKind h
+	eval twoPairs h
+	eval onePair h
+	eval highCard h
 
 freq :: Hand -> [(Value, Int)]
 freq h = sortBy f $ map (\x -> (head x, length x)) . group . sort $ values
@@ -116,15 +150,20 @@ freq h = sortBy f $ map (\x -> (head x, length x)) . group . sort $ values
 testHand :: Hand
 testHand = [(Club,Six),(Club,Two), (Club,Six),(Club,Four),(Club,Two)]
 
-
-testHand2 :: Hand
-testHand2 = [(Club,Five),(Club,Three), (Club,Six),(Club,Four),(Club,Two)]
-
 transform :: Hand -> HandEvaluation
 transform h = fromJust $ runCont (evaluateHand h) id
 
 main = do 
-	print $ transform testHand
-	print $ onePair testHand
+	print "test"
+	-- print $ hand . head $ initBots someMetadata
 	--- print . length . cardCombinations 5 $ take 7 theDeck
-	print $ map transform $ cardCombinations 5 $ take 12 theDeck 
+	-- print $ map transform $ cardCombinations 5 $ take 12 theDeck 
+
+--playGame :: (PokerGame g) => [PokerBot] -> g
+--playGame bs = do
+--	initBots bs
+--instance PokerGame TexasHoldemPoker where
+--	initBots bs = TexasHoldemPoker { gameState = Table {pot = 100, communityCards = []}, bots = []}
+--	round = undefined
+--	evalCards = undefined
+--	result = undefined
