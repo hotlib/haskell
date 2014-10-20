@@ -1,11 +1,12 @@
-{-# LANGUAGE TypeSynonymInstances, FlexibleInstances #-}
-
+import Prelude hiding (round)
 import Data.List
+import Data.List.Split
 import Control.Applicative
 import Control.Monad.Trans.Cont
 import Data.Maybe 
 import Control.Monad.Reader
 import Control.Monad.Writer
+import System.Random
 
 data Suit = Club | Diamond | Heart | Spade deriving (Eq, Show, Enum, Ord)
 data Value = Two | Three | Four | Five | Six | Seven | Eight | Nine | Ten | Jack | Queen | King | Ace  deriving (Eq, Show, Enum, Ord)
@@ -24,39 +25,70 @@ type Deck = [Card]
 type Hand = [Card]
 type CommunityCards = [Card]
 type Money = Int 
-data BotAction = Fold | Call | Raise Int 
 
-data PokerBot = PokerBot { name :: String, runAction :: PokerAction } 
-data BotState = BotState {hand :: Hand, moneyLeft :: Money, investedInPot :: Money, callNeeded :: Money, pot :: Money, communityCards :: CommunityCards} deriving (Show)
-data TexasHoldemPoker = TexasHoldemPoker { bots :: [PokerBot], botStates :: [BotState], deck :: Deck}  deriving (Show)
+data PlayAction = Fold | Call | Raise Money deriving (Eq, Show, Ord)
+data RoundStartAction = Check | Bet Money | Fold_ deriving (Eq, Show, Ord)
 
-type PokerAction = Reader BotState BotAction 
-type GamePlay g = Writer String g 
+data PokerBot = PokerBot { name :: String, startAction :: PokerAction RoundStartAction,  playAction :: PokerAction PlayAction } 
+data BotState = BotState {hole :: Hand, moneyLeft :: Money, investedInPot :: Money, callNeeded :: Money, pot :: Money, communityCards :: CommunityCards} deriving (Show)
+data TexasHoldemPoker = TexasHoldemPoker { bots :: [(PokerBot, BotState)], deck :: Deck}  deriving (Show)
+
+type PokerAction a = ReaderT BotState IO a
+type GamePlay a = WriterT String IO a 
+
+pokerBot :: String -> PokerAction RoundStartAction -> PokerAction PlayAction -> PokerBot
+pokerBot n r p = PokerBot { name = n, startAction = r, playAction = p}
 
 evalHand :: BotState -> [HandEvaluation]
 evalHand = undefined
 
-playBot :: PokerAction
+playBot :: PokerAction PlayAction
 playBot = do
 	cards <- ask
 	return Fold
 
-playGame2 :: [PokerBot] -> (GamePlay TexasHoldemPoker)
-playGame2 bs = do	
-	tell "starting game; "
-	let gs = initGame []
-	gs
+playStart :: PokerAction RoundStartAction
+playStart = do
+	cards <- ask
+	return Fold_
 
 instance Show PokerBot where
   show b = "Bot: " ++ name b
 
-class PokerGame g where
-	initGame :: [PokerBot] -> g
-	round :: g -> g
+class PokerGame a where 
+	initGame :: [PokerBot] -> GamePlay a
+	round ::  a -> GamePlay a 
+	playGame :: a -> GamePlay a 
 	
-instance PokerGame (GamePlay TexasHoldemPoker) where
-	initGame bs = writer (TexasHoldemPoker { botStates = [],  bots = [], deck = []}, "converted bots")
-	round = undefined
+instance PokerGame TexasHoldemPoker where
+	initGame = initGame_
+	round = round_
+	playGame = playGame_ 
+
+folderBot :: PokerBot
+folderBot = pokerBot "folder" (return Fold_) (return Fold)
+
+round_ :: TexasHoldemPoker -> GamePlay TexasHoldemPoker
+round_ x = do
+	tell "removing deck"
+	return (x {deck = []}) 
+
+playGame_ :: TexasHoldemPoker -> GamePlay TexasHoldemPoker
+playGame_ x = do
+	tell $ "received " ++ (show $ (length . bots ) x) ++ " bots\n"
+	y <- round_ x
+	return y
+	
+
+initGame_ :: [PokerBot] -> GamePlay TexasHoldemPoker
+initGame_ bs = writer (TexasHoldemPoker { bots = bz, deck = drop cardDealtLength theDeck}, "Created " ++ show (length bz) ++ " bots\n" )
+	where 
+		cardDealtLength = 2 * length bs
+		botCards = chunksOf 2 $ take cardDealtLength theDeck
+		bz = zipWith makeBots bs botCards
+		makeBots b c = (b, s c)
+		s c = BotState {hole = c, moneyLeft = 100, investedInPot = 0, callNeeded = 0, pot = 0, communityCards = []} 
+
 
 theDeck :: Deck
 theDeck = [(x, y) | x <- [Club .. Spade], y <- [Two .. Ace]]
@@ -153,17 +185,38 @@ testHand = [(Club,Six),(Club,Two), (Club,Six),(Club,Four),(Club,Two)]
 transform :: Hand -> HandEvaluation
 transform h = fromJust $ runCont (evaluateHand h) id
 
-main = do 
-	print "test"
-	-- print $ hand . head $ initBots someMetadata
-	--- print . length . cardCombinations 5 $ take 7 theDeck
-	-- print $ map transform $ cardCombinations 5 $ take 12 theDeck 
+runGame :: IO (TexasHoldemPoker, String)
+runGame = runWriterT $ initGame [folderBot, folderBot] >>= playGame  
 
---playGame :: (PokerGame g) => [PokerBot] -> g
---playGame bs = do
---	initBots bs
---instance PokerGame TexasHoldemPoker where
---	initBots bs = TexasHoldemPoker { gameState = Table {pot = 100, communityCards = []}, bots = []}
---	round = undefined
---	evalCards = undefined
---	result = undefined
+
+main = do
+	x <- runGame
+	putStrLn $ snd x
+	--print runGame
+
+
+--class (Functor m, Applicative m, MonadIO m) => RestrictedIO m where
+--	rand :: m Double
+	
+--instance RestrictedIO IO where
+--	rand = randomRIO (0.0, 1.0)
+
+
+--ttest2 :: IO Double
+--ttest2 = do 
+--	print "this shouldnt happen"
+--	randomRIO (0.0, 1.0)
+
+
+--ttest :: RestrictedIO r => r Double
+--ttest = do 
+--	rand
+
+--type PokerAction2 a b = ReaderT BotState a b
+
+--tttest :: (RestrictedIO r) => PokerAction2 r PlayAction
+--tttest = do
+--	xx <- liftIO ttest
+--	return $ Raise $ (floor $ xx * 100)
+
+--dummyBotState = BotState {hole = [], moneyLeft = 100, investedInPot = 100, callNeeded = 100, pot = 100, communityCards = []} 
