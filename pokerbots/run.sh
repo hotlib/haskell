@@ -1,1 +1,1 @@
-cabal build && ./dist/build/exampleplay/exampleplay
+cabal build > /dev/null && ./dist/build/exampleplay/exampleplay

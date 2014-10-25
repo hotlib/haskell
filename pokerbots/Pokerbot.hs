@@ -16,15 +16,43 @@ type PokerAction a = ReaderT BotState IO a
 type GamePlay a = WriterT String IO a 
 
 data PokerBot = PokerBot { _name :: String, _startAction :: PokerAction RoundStartAction,  _playAction :: PokerAction PlayAction } 
-data BotState = BotState {_hole :: Hand, _moneyLeft :: Int, _investedInPot :: Int, _callNeeded :: Int, _pot :: Int, _communityCards :: CommunityCards} deriving (Show)
+data BotState = BotState {_hole :: Hand, _moneyLeft :: Int, _investedInPot :: Int, _callNeeded :: Int, _potTotal :: Int, _communityCards :: CommunityCards} -- deriving (Show)
 data TexasHoldemPoker = TexasHoldemPoker { _bots :: [(PokerBot, BotState)], _deck :: Deck, _startingBot :: Int}  deriving (Show)
 
 instance Show PokerBot where
-  show b = "Bot: " ++ _name b
+  show b = "POKERBOT: " ++ _name b
+
+instance Show BotState where
+  show b = "BOTSTATE: " ++ (show $ _investedInPot b)
+
+type CompleteBot = (PokerBot, BotState)
+type Pot = (Money, [CompleteBot])
+
+--instance Show Pot where
+--  show p = "Pot money: " ++ fst p ++ " bots: " ++ show $ snd p
 
 makeLenses ''PokerBot
 makeLenses ''BotState
 makeLenses ''TexasHoldemPoker
+
+instance Ord PokerBot where
+	compare x y
+         | x^.name == y^.name    =  EQ
+         | x^.name <= y^.name    =  LT
+         | otherwise =  GT
+
+instance Ord BotState where
+	compare x y
+         | x^.moneyLeft == y^.moneyLeft    =  EQ
+         | x^.moneyLeft <= y^.moneyLeft    =  LT
+         | otherwise =  GT
+
+instance Eq BotState where
+	(==) x y = x^.moneyLeft == y^.moneyLeft
+
+instance Eq PokerBot where
+	(==) x y = x^.name == y^.name
+
 
 pokerBot :: String -> PokerAction RoundStartAction -> PokerAction PlayAction -> PokerBot
 pokerBot n r p = PokerBot { _name = n, _startAction = r, _playAction = p}
@@ -52,7 +80,6 @@ playStartExample = do
 	cards <- ask
 	return Fold_
 
-
 class PokerGame a where 
 	initGame :: [PokerBot] -> GamePlay a
 	round ::  a -> GamePlay a 
@@ -70,7 +97,7 @@ invest ::  Money -> BotState -> BotState
 invest m b = let 
 	decr = (subtract m) 
 	incr = (+ m)
-	updateState = (moneyLeft %~ decr) . (pot %~ incr) . (investedInPot %~ incr)
+	updateState = (moneyLeft %~ decr) . (potTotal %~ incr) . (investedInPot %~ incr)
 	in
 	b & updateState
 
@@ -93,21 +120,6 @@ bet1 t = let
 round_ :: TexasHoldemPoker -> GamePlay TexasHoldemPoker
 round_ t = smallBlindBet t >>= bigBlindBet -- >>= bet1
 
-
-
-		--return $ t&bots %~ \(b:bs) -> (fst b, (bigBlind $ snd b)) : bs  
--- t&startingBot %~ (+1)
-		-- return t
-	-- let 
-	--	bz = t^.bots
-		-- smallBlindBot = ((bz !! 0)^._2) -- (t^.startingBot `mod` (length bz))
-	--	in
-		-- return t
-	-- choose small and big blind and add to pot IFF pot empty
-	-- otherwise RoundStartAction until someone bets
-	-- afterwards normal PokerAction
-	
-
 playGame_ :: TexasHoldemPoker -> GamePlay TexasHoldemPoker
 playGame_ x = do
 	tell $ "received " ++ (show $ (length . _bots ) x) ++ " bots\n"
@@ -115,7 +127,7 @@ playGame_ x = do
 	return y
 
 botState :: [Card] -> BotState
-botState c = BotState {_hole = c, _moneyLeft = 100, _investedInPot = 0, _callNeeded = 0, _pot = 0, _communityCards = []}	
+botState c = BotState {_hole = c, _moneyLeft = 100, _investedInPot = 0, _callNeeded = 0, _potTotal = 0, _communityCards = []}	
 
 initGame_ :: [PokerBot] -> GamePlay TexasHoldemPoker
 initGame_ bs = writer (TexasHoldemPoker { _bots = bz, _deck = drop cardDealtLength theDeck, _startingBot = 0}, "Created " ++ show (length bz) ++ " bots\n" )
@@ -134,11 +146,29 @@ transform h = fromJust $ runCont (evaluateHand h) id
 runGame :: (PokerGame g) => IO (g, String)
 runGame = runWriterT $ initGame [folderBot, folderBot] >>= playGame  
 
-ppprint = print "ok"
+splitPots :: [Pot] -> [CompleteBot] -> [Pot]
+splitPots pots [] = pots
+splitPots pots [_] = pots
+splitPots pots bs = splitPots updatePot otherBots 
+	where
+		bsInvest = map (\(p,s) -> (s^.investedInPot, (p,s))) bs 
+		minimumInvestment = minimum $ map potInvestment bs 
+		minBots = filter (\(n, _) -> n == (fst . minimum) bsInvest) bsInvest
+		otherBots = filter (\x -> minimumInvestment < potInvestment x) bs
+		potSize = (fst . minimum $ bsInvest) * (fromIntegral (length bsInvest))
+		updatePot = (potSize,bs) : pots
+		potInvestment = ((^.investedInPot) . snd)
+
+dummyBots = [(folderBot, (botState [])&investedInPot .~ 23), 
+	(folderBot, (botState [])&investedInPot .~ 11), 
+	(folderBot, (botState [])&investedInPot .~ 222),
+	(folderBot, (botState [])&investedInPot .~ 11)] 
 
 defaultMain = do
 	--x <- runGame :: IO (TexasHoldemPoker, String)
 	--putStrLn $ snd x
 	--print $ fst x
-	x <- playBot folderBot (botState [])
-	print x 
+	-- ----
+	--x <- playBot folderBot (botState [])
+	--print x
+	print $ splitPots [] dummyBots
