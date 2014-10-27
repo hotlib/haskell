@@ -57,13 +57,13 @@ instance Eq PokerBot where
 pokerBot :: String -> PokerAction RoundStartAction -> PokerAction PlayAction -> PokerBot
 pokerBot n r p = PokerBot { _name = n, _startAction = r, _playAction = p}
 
-playBot :: PokerBot -> BotState -> IO PlayAction
-playBot b s = runReaderT action s
+playBot :: CompleteBot -> IO PlayAction
+playBot (b, s) = runReaderT action s
 	where
 		action = b^.playAction 
 
-playRoundStartBot :: PokerBot -> BotState -> IO RoundStartAction
-playRoundStartBot b s = runReaderT action s
+playRoundStartBot :: CompleteBot -> IO RoundStartAction
+playRoundStartBot (b, s) = runReaderT action s
 	where
 		action = b^.startAction 
 
@@ -93,13 +93,17 @@ instance PokerGame TexasHoldemPoker where
 folderBot :: PokerBot
 folderBot = pokerBot "folder" (return Fold_) (return Fold)
 
+
+updateState f1 f2 = (moneyLeft %~ f1) . (potTotal %~ f2) . (investedInPot %~ f2)
+
+
 invest ::  Money -> BotState -> BotState
 invest m b = let 
 	decr = (subtract m) 
 	incr = (+ m)
-	updateState = (moneyLeft %~ decr) . (potTotal %~ incr) . (investedInPot %~ incr)
+	update = updateState decr incr
 	in
-	b & updateState
+	b & update
 
 smallBlindBet :: TexasHoldemPoker -> GamePlay TexasHoldemPoker
 smallBlindBet t = return $ t&bots %~ \(b:bs) -> bs ++ [(fst b, invest 5 $ snd b)]
@@ -164,6 +168,23 @@ dummyBots = [(folderBot, (botState [])&investedInPot .~ 23),
 	(folderBot, (botState [])&investedInPot .~ 222),
 	(folderBot, (botState [])&investedInPot .~ 11)] 
 
+-- poty -> kazdy zahra o svoje poty zahra akciu -> rozmnozenie potov
+
+updateBotState :: Money -> PlayAction -> CompleteBot -> CompleteBot
+updateBotState currentCall a bot@(b, s) = 
+	case a of 
+		Fold -> bot
+		Call -> (b, updateState (subtract currentCall) (+ currentCall) s)
+		(Raise m) -> let amount = m + currentCall in (b, updateState (subtract amount) (+ amount) s)
+		
+round2_ :: [Pot] -> [CompleteBot] -> IO ()
+round2_ ps bs = do 
+	as <- actions
+	let x = zipWith (updateBotState 100) as bs
+	print x
+	where 
+		actions = sequence $ map playBot bs 
+
 defaultMain = do
 	--x <- runGame :: IO (TexasHoldemPoker, String)
 	--putStrLn $ snd x
@@ -171,4 +192,5 @@ defaultMain = do
 	-- ----
 	--x <- playBot folderBot (botState [])
 	--print x
-	print $ splitPots [] dummyBots
+	round2_ [] dummyBots
+	print "ok"
