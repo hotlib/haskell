@@ -17,16 +17,18 @@ type GamePlay a = WriterT String IO a
 
 data PokerBot = PokerBot { _name :: String, _startAction :: PokerAction RoundStartAction,  _playAction :: PokerAction PlayAction } 
 data BotState = BotState {_hole :: Hand, _moneyLeft :: Int, _investedInPot :: Int, _callNeeded :: Int, _potTotal :: Int, _communityCards :: CommunityCards} -- deriving (Show)
-data TexasHoldemPoker = TexasHoldemPoker { _bots :: [(PokerBot, BotState)], _deck :: Deck, _startingBot :: Int}  deriving (Show)
+
+data TexasHoldemPoker = TexasHoldemPoker { _bots :: [(PokerBot, BotState)], _deck :: Deck}  deriving (Show)
 
 instance Show PokerBot where
   show b = "POKERBOT: " ++ _name b
 
 instance Show BotState where
-  show b = "BOTSTATE: " ++ (show $ _investedInPot b)
+  show b = "BOTSTATE investedInPot: " ++ (show $ _investedInPot b) ++ " _moneyLeft: " ++ (show $ _moneyLeft b)
 
 type CompleteBot = (PokerBot, BotState)
 type Pot = (Money, [CompleteBot])
+type Pot2 = [(Money, CompleteBot)]
 
 --instance Show Pot where
 --  show p = "Pot money: " ++ fst p ++ " bots: " ++ show $ snd p
@@ -36,10 +38,10 @@ makeLenses ''BotState
 makeLenses ''TexasHoldemPoker
 
 instance Ord PokerBot where
-	compare x y
-         | x^.name == y^.name    =  EQ
-         | x^.name <= y^.name    =  LT
-         | otherwise =  GT
+    compare x y
+        | x^.name == y^.name    =  EQ
+        | x^.name <= y^.name    =  LT
+        | otherwise =  GT
 
 instance Ord BotState where
 	compare x y
@@ -52,7 +54,6 @@ instance Eq BotState where
 
 instance Eq PokerBot where
 	(==) x y = x^.name == y^.name
-
 
 pokerBot :: String -> PokerAction RoundStartAction -> PokerAction PlayAction -> PokerBot
 pokerBot n r p = PokerBot { _name = n, _startAction = r, _playAction = p}
@@ -90,12 +91,10 @@ instance PokerGame TexasHoldemPoker where
 	round = round_
 	playGame = playGame_ 
 
-folderBot :: PokerBot
-folderBot = pokerBot "folder" (return Fold_) (return Fold)
-
+folderBot :: String -> PokerBot
+folderBot name = pokerBot name (return Fold_) (return Fold)
 
 updateState f1 f2 = (moneyLeft %~ f1) . (potTotal %~ f2) . (investedInPot %~ f2)
-
 
 invest ::  Money -> BotState -> BotState
 invest m b = let 
@@ -134,7 +133,7 @@ botState :: [Card] -> BotState
 botState c = BotState {_hole = c, _moneyLeft = 100, _investedInPot = 0, _callNeeded = 0, _potTotal = 0, _communityCards = []}	
 
 initGame_ :: [PokerBot] -> GamePlay TexasHoldemPoker
-initGame_ bs = writer (TexasHoldemPoker { _bots = bz, _deck = drop cardDealtLength theDeck, _startingBot = 0}, "Created " ++ show (length bz) ++ " bots\n" )
+initGame_ bs = writer (TexasHoldemPoker { _bots = bz, _deck = drop cardDealtLength theDeck}, "Created " ++ show (length bz) ++ " bots\n" )
 	where 
 		cardDealtLength = 2 * length bs
 		botCards = chunksOf 2 $ take cardDealtLength theDeck
@@ -148,7 +147,7 @@ transform :: Hand -> HandEvaluation
 transform h = fromJust $ runCont (evaluateHand h) id
 
 runGame :: (PokerGame g) => IO (g, String)
-runGame = runWriterT $ initGame [folderBot, folderBot] >>= playGame  
+runGame = runWriterT $ initGame [folderBot "xx", folderBot "xxx"] >>= playGame  
 
 splitPots :: [Pot] -> [CompleteBot] -> [Pot]
 splitPots pots [] = pots
@@ -157,16 +156,40 @@ splitPots pots bs = splitPots updatePot otherBots
 	where
 		bsInvest = map (\(p,s) -> (s^.investedInPot, (p,s))) bs 
 		minimumInvestment = minimum $ map potInvestment bs 
-		minBots = filter (\(n, _) -> n == (fst . minimum) bsInvest) bsInvest
+		-- minBots = filter (\(n, _) -> n == (fst . minimum) bsInvest) bsInvest
 		otherBots = filter (\x -> minimumInvestment < potInvestment x) bs
 		potSize = (fst . minimum $ bsInvest) * (fromIntegral (length bsInvest))
 		updatePot = (potSize,bs) : pots
 		potInvestment = ((^.investedInPot) . snd)
 
-dummyBots = [(folderBot, (botState [])&investedInPot .~ 23), 
-	(folderBot, (botState [])&investedInPot .~ 11), 
-	(folderBot, (botState [])&investedInPot .~ 222),
-	(folderBot, (botState [])&investedInPot .~ 11)] 
+splitPots2 :: [Pot2] -> [CompleteBot] -> [Pot2]
+splitPots2 pots [] = pots
+splitPots2 (h:hs) [(p,s)] = let 
+    h_ = filter (\(_, (p1,s1)) -> p1^.name /= p^.name) h 
+    [(mi,_), _] = h
+    returnMoney = (s^.investedInPot) - mi
+    updatedBot = (mi, (p, s&moneyLeft %~ (+ returnMoney)))
+    in
+    (updatedBot : h_) : hs 
+splitPots2 pots bs = splitPots2 updatePot otherBots 
+    where
+        currentPotInvest = map (\b -> (minimumInvestment, decrInvestment b)) bs 
+        minimumInvestment = minimum $ map potInvestment bs 
+        otherBots = map decrInvestment $ filter (\x -> minimumInvestment < potInvestment x) bs
+        updatePot = currentPotInvest : pots
+        potInvestment = ((^.investedInPot) . snd)
+        decrInvestment (p,s) = (p, s&moneyLeft %~ (subtract minimumInvestment))
+
+collectBots :: [CompleteBot] -> [Pot2] -> [CompleteBot]
+collectBots foldedBots pots = foldl (\list (_, bot@(p,s)) -> if isBotInList bot list then list else (p,s&investedInPot .~ 0) : list) foldedBots $ concat pots
+    where
+        isBotInList (p,s) list = any (\(p1,_) -> p1^.name == p^.name ) list 
+
+
+dummyBots = [(folderBot "x", (botState [])&investedInPot .~ 23), 
+	(folderBot "xx", (botState [])&investedInPot .~ 11), 
+	(folderBot "xxx", (botState [])&investedInPot .~ 222),
+	(folderBot "xxxx", (botState [])&investedInPot .~ 11)] 
 
 -- poty -> kazdy zahra o svoje poty zahra akciu -> rozmnozenie potov
 
@@ -192,5 +215,6 @@ defaultMain = do
 	-- ----
 	--x <- playBot folderBot (botState [])
 	--print x
-	round2_ [] dummyBots
-	print "ok"
+	-- round2_ [] dummyBots
+    print $ collectBots [] $ splitPots2 [] dummyBots
+    print "ok"
