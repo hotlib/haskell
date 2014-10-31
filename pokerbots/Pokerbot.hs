@@ -24,7 +24,7 @@ instance Show PokerBot where
   show b = "POKERBOT: " ++ _name b
 
 instance Show BotState where
-  show b = "BOTSTATE investedInPot: " ++ (show $ _investedInPot b) ++ " _moneyLeft: " ++ (show $ _moneyLeft b)
+  show b = "BOTSTATE investedInPot: " ++ (show $ _investedInPot b) ++ " _moneyLeft: " ++ (show $ _moneyLeft b) ++ " _callNeeded: " ++ (show $ _callNeeded b)
 
 type CompleteBot = (PokerBot, BotState)
 type Pot = (Money, [CompleteBot])
@@ -92,7 +92,13 @@ instance PokerGame TexasHoldemPoker where
 	playGame = playGame_ 
 
 folderBot :: String -> PokerBot
-folderBot name = pokerBot name (return Fold_) (return Call)
+folderBot name = pokerBot name (return Fold_) (return Fold)
+
+callBot :: String -> PokerBot
+callBot name = pokerBot name (return Fold_) (return Call)
+
+raiseBot :: String -> PokerBot
+raiseBot name = pokerBot name (return Fold_) (return $ Raise 25)
 
 updateState f1 f2 = (moneyLeft %~ f1) . (potTotal %~ f2) . (investedInPot %~ f2)
 
@@ -129,34 +135,47 @@ bet1 t = let
 round_ :: TexasHoldemPoker -> GamePlay TexasHoldemPoker
 round_ t = smallBlindBet t >>= bigBlindBet >>= normalRound
 
-updateBotState :: Money -> PlayAction -> CompleteBot -> CompleteBot
-updateBotState currentCall a bot@(b, s) = 
+updateBotState :: PlayAction -> CompleteBot -> CompleteBot
+updateBotState a bot@(b, s) = 
 	case a of 
 		Fold -> bot
-		Call -> (b, updateState (subtract currentCall) (+ currentCall) s)
-		(Raise m) -> let amount = m + currentCall in (b, updateState (subtract amount) (+ amount) s)
-		
+		Call -> (b, updateState (subtract call) (+ call) s)
+		(Raise m) -> let amount = m + call in (b, updateState (subtract amount) (+ amount) s)
+	where
+		call = s^.callNeeded	
 normalRound :: TexasHoldemPoker -> GamePlay TexasHoldemPoker
 normalRound t = do
-	liftIO $ print $ t^.bots 
 	bs <- liftIO updatedBots
 	liftIO $ print bs
 	return $ t&bots .~ bs
 	where 
 		updatedBots = foldl (\x y -> x >>= (updater y)) (return []) $ t^.bots
  	
-	
+dummyBots2 = [callBot "xx",  callBot "xxxx",raiseBot "xxx", folderBot "x"] 
+
 updater :: CompleteBot -> [CompleteBot] -> IO [CompleteBot]
-updater b [] = do 
+updater b [] = do -- TODO if invested == callneeded than skip, also skip (first time) blind bet bot
 	action <- playBot b
-	let newBot = updateBotState bblind action b in return [newBot] 
-updater b bs@(b1:_) = do
+	print $ "action FIRST " ++ (show action) ++ " Bot: " ++ (show b)
+	if action /= Fold then
+		let newBot = updateBotState action b in return [newBot]
+	else
+		return [] 
+updater (p,s) bs@(b1:_) = do 
 	action <- playBot b
-	let newCall = (invB1 - invB); newBot = updateBotState newCall action b in return $ newBot : bs
+	print $ "action " ++ (show action) ++ " Bot: " ++ (show b) ++ " invB: " ++ (show invB) ++ " invB1 " ++ (show invB1)
+	if action /= Fold then
+		let newBot = updateBotState action b
+	 in return $ newBot : bs
+	else
+		return bs 	
     where
+    	b = (p,s&callNeeded .~ newCall)
+    	newCall = invB1 - invB
     	invB = invested b 
-        invB1 = invested b1 
+        invB1 = if (invested b1) < (callneeded b1) then (callneeded b1) else (invested b1) 
     	invested = ((^.investedInPot) . snd)
+    	callneeded = ((^.callNeeded) . snd)
 
 playGame_ :: TexasHoldemPoker -> GamePlay TexasHoldemPoker
 playGame_ x = do
@@ -182,7 +201,7 @@ transform :: Hand -> HandEvaluation
 transform h = fromJust $ runCont (evaluateHand h) id
 
 runGame :: (PokerGame g) => IO (g, String)
-runGame = runWriterT $ initGame [folderBot "xx", folderBot "xxx"] >>= playGame  
+runGame = runWriterT $ initGame dummyBots2 >>= playGame  
 
 splitPots :: [Pot] -> [CompleteBot] -> [Pot]
 splitPots pots [] = pots
@@ -220,14 +239,10 @@ collectBots foldedBots pots = foldl (\list (_, bot@(p,s)) -> if isBotInList bot 
     where
         isBotInList (p,s) list = any (\(p1,_) -> p1^.name == p^.name ) list 
 
-
 dummyBots = [(folderBot "x", (botState [])&investedInPot .~ 23), 
 	(folderBot "xx", (botState [])&investedInPot .~ 11), 
 	(folderBot "xxx", (botState [])&investedInPot .~ 222),
 	(folderBot "xxxx", (botState [])&investedInPot .~ 11)] 
-
--- poty -> kazdy zahra o svoje poty zahra akciu -> rozmnozenie potov
-
 
    
 defaultMain = do
