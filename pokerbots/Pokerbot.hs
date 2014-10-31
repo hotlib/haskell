@@ -137,12 +137,15 @@ updateBotState currentCall a bot@(b, s) =
 		(Raise m) -> let amount = m + currentCall in (b, updateState (subtract amount) (+ amount) s)
 		
 normalRound :: TexasHoldemPoker -> GamePlay TexasHoldemPoker
-normalRound t = do 
+normalRound t = do
+	liftIO $ print $ t^.bots 
 	bs <- liftIO updatedBots
+	liftIO $ print bs
 	return $ t&bots .~ bs
 	where 
 		updatedBots = foldl (\x y -> x >>= (updater y)) (return []) $ t^.bots
- 		
+ 	
+	
 updater :: CompleteBot -> [CompleteBot] -> IO [CompleteBot]
 updater b [] = do 
 	action <- playBot b
