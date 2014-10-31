@@ -143,24 +143,34 @@ updateBotState a bot@(b, s) =
 		(Raise m) -> let amount = m + call in (b, updateState (subtract amount) (+ amount) s)
 	where
 		call = s^.callNeeded	
+
 normalRound :: TexasHoldemPoker -> GamePlay TexasHoldemPoker
 normalRound t = do
+	liftIO $ print $ t^.bots
+	liftIO $ print "-------------------------------------"
 	bs <- liftIO updatedBots
 	liftIO $ print bs
 	return $ t&bots .~ bs
 	where 
 		updatedBots = foldl (\x y -> x >>= (updater y)) (return []) $ t^.bots
  	
-dummyBots2 = [callBot "xx",  callBot "xxxx",raiseBot "xxx", folderBot "x"] 
+dummyBots2 = [callBot "xx",  folderBot "xxxx",raiseBot "xxx", folderBot "x"] 
+
+firstAction :: CompleteBot -> IO [CompleteBot]
+firstAction b = do 
+		action <- playBot b
+		print $ "action FIRST " ++ (show action) ++ " Bot: " ++ (show b)
+		if action /= Fold then
+			let newBot = updateBotState action b in return [newBot]
+		else
+			return [] 
 
 updater :: CompleteBot -> [CompleteBot] -> IO [CompleteBot]
-updater b [] = do -- TODO if invested == callneeded than skip, also skip (first time) blind bet bot
-	action <- playBot b
-	print $ "action FIRST " ++ (show action) ++ " Bot: " ++ (show b)
-	if action /= Fold then
-		let newBot = updateBotState action b in return [newBot]
+updater b [] = do 
+	if ((snd b)^.callNeeded) == 0 then
+		return [b] -- he was the big blind
 	else
-		return [] 
+		firstAction b
 updater (p,s) bs@(b1:_) = do 
 	action <- playBot b
 	print $ "action " ++ (show action) ++ " Bot: " ++ (show b) ++ " invB: " ++ (show invB) ++ " invB1 " ++ (show invB1)
