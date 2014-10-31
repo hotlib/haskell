@@ -160,11 +160,8 @@ firstAction :: CompleteBot -> IO [CompleteBot]
 firstAction b = do 
 		action <- playBot b
 		print $ "action FIRST " ++ (show action) ++ " Bot: " ++ (show b)
-		if action /= Fold then
-			let newBot = updateBotState action b in return [newBot]
-		else
-			return [] 
-
+		let newBot = updateBotState action b in return [newBot]
+	
 updater :: CompleteBot -> [CompleteBot] -> IO [CompleteBot]
 updater b [] = do 
 	if ((snd b)^.callNeeded) == 0 then
@@ -174,12 +171,9 @@ updater b [] = do
 updater (p,s) bs@(b1:_) = do 
 	action <- playBot b
 	print $ "action " ++ (show action) ++ " Bot: " ++ (show b) ++ " invB: " ++ (show invB) ++ " invB1 " ++ (show invB1)
-	if action /= Fold then
-		let newBot = updateBotState action b
+	let newBot = updateBotState action b
 	 in return $ newBot : bs
-	else
-		return bs 	
-    where
+	where
     	b = (p,s&callNeeded .~ newCall)
     	newCall = invB1 - invB
     	invB = invested b 
