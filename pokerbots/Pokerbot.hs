@@ -127,7 +127,7 @@ bet1 t = let
 	return $ (t&bots .~ b:bs2)  
 
 round_ :: TexasHoldemPoker -> GamePlay TexasHoldemPoker
-round_ t = smallBlindBet t >>= bigBlindBet -- >>= bet1
+round_ t = smallBlindBet t >>= bigBlindBet >>= normalRound
 
 updateBotState :: Money -> PlayAction -> CompleteBot -> CompleteBot
 updateBotState currentCall a bot@(b, s) = 
@@ -136,14 +136,13 @@ updateBotState currentCall a bot@(b, s) =
 		Call -> (b, updateState (subtract currentCall) (+ currentCall) s)
 		(Raise m) -> let amount = m + currentCall in (b, updateState (subtract amount) (+ amount) s)
 		
-round2_ :: [CompleteBot] -> IO ()
-round2_ bs = do 
-	x <- updatedBots
-	print x
+normalRound :: TexasHoldemPoker -> GamePlay TexasHoldemPoker
+normalRound t = do 
+	bs <- liftIO updatedBots
+	return $ t&bots .~ bs
 	where 
-		updatedBots = foldl (\x y -> x >>= (updater y)) (return []) bs 
-	
-
+		updatedBots = foldl (\x y -> x >>= (updater y)) (return []) $ t^.bots
+ 		
 updater :: CompleteBot -> [CompleteBot] -> IO [CompleteBot]
 updater b [] = do 
 	action <- playBot b
@@ -229,12 +228,11 @@ dummyBots = [(folderBot "x", (botState [])&investedInPot .~ 23),
 
    
 defaultMain = do
-	--x <- runGame :: IO (TexasHoldemPoker, String)
-	--putStrLn $ snd x
-	--print $ fst x
-	-- ----
+	x <- runGame :: IO (TexasHoldemPoker, String)
+	putStrLn $ snd x
+	print $ fst x
+	 ----
 	--x <- playBot folderBot (botState [])
 	--print x
-	round2_ dummyBots
-    -- print $ collectBots [] $ splitPots2 [] dummyBots
+	-- print $ collectBots [] $ splitPots2 [] dummyBots
     -- print "ok"
