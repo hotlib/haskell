@@ -92,7 +92,7 @@ instance PokerGame TexasHoldemPoker where
 	playGame = playGame_ 
 
 folderBot :: String -> PokerBot
-folderBot name = pokerBot name (return Fold_) (return Fold)
+folderBot name = pokerBot name (return Fold_) (return Call)
 
 updateState f1 f2 = (moneyLeft %~ f1) . (potTotal %~ f2) . (investedInPot %~ f2)
 
@@ -104,11 +104,17 @@ invest m b = let
 	in
 	b & update
 
+bblind :: Money
+bblind = 10
+
+sblind :: Money
+sblind = 5
+
 smallBlindBet :: TexasHoldemPoker -> GamePlay TexasHoldemPoker
-smallBlindBet t = return $ t&bots %~ \(b:bs) -> bs ++ [(fst b, invest 5 $ snd b)]
+smallBlindBet t = return $ t&bots %~ \(b:bs) -> bs ++ [(fst b, invest sblind $ snd b)]
 
 bigBlindBet :: TexasHoldemPoker -> GamePlay TexasHoldemPoker
-bigBlindBet t = return $ t&bots %~ \(b:bs) -> (fst b, (invest 10 $ snd b)) : bs  
+bigBlindBet t = return $ t&bots %~ \(b:bs) -> (fst b, (invest bblind $ snd b)) : bs  
 
 rround :: Money -> [(PokerBot, BotState)] -> [(PokerBot, BotState)]
 rround = undefined -- foldl id 
@@ -122,6 +128,33 @@ bet1 t = let
 
 round_ :: TexasHoldemPoker -> GamePlay TexasHoldemPoker
 round_ t = smallBlindBet t >>= bigBlindBet -- >>= bet1
+
+updateBotState :: Money -> PlayAction -> CompleteBot -> CompleteBot
+updateBotState currentCall a bot@(b, s) = 
+	case a of 
+		Fold -> bot
+		Call -> (b, updateState (subtract currentCall) (+ currentCall) s)
+		(Raise m) -> let amount = m + currentCall in (b, updateState (subtract amount) (+ amount) s)
+		
+round2_ :: [CompleteBot] -> IO ()
+round2_ bs = do 
+	x <- updatedBots
+	print x
+	where 
+		updatedBots = foldl (\x y -> x >>= (updater y)) (return []) bs 
+	
+
+updater :: CompleteBot -> [CompleteBot] -> IO [CompleteBot]
+updater b [] = do 
+	action <- playBot b
+	let newBot = updateBotState bblind action b in return [newBot] 
+updater b bs@(b1:_) = do
+	action <- playBot b
+	let newCall = (invB1 - invB); newBot = updateBotState newCall action b in return $ newBot : bs
+    where
+    	invB = invested b 
+        invB1 = invested b1 
+    	invested = ((^.investedInPot) . snd)
 
 playGame_ :: TexasHoldemPoker -> GamePlay TexasHoldemPoker
 playGame_ x = do
@@ -193,21 +226,8 @@ dummyBots = [(folderBot "x", (botState [])&investedInPot .~ 23),
 
 -- poty -> kazdy zahra o svoje poty zahra akciu -> rozmnozenie potov
 
-updateBotState :: Money -> PlayAction -> CompleteBot -> CompleteBot
-updateBotState currentCall a bot@(b, s) = 
-	case a of 
-		Fold -> bot
-		Call -> (b, updateState (subtract currentCall) (+ currentCall) s)
-		(Raise m) -> let amount = m + currentCall in (b, updateState (subtract amount) (+ amount) s)
-		
-round2_ :: [Pot] -> [CompleteBot] -> IO ()
-round2_ ps bs = do 
-	as <- actions
-	let x = zipWith (updateBotState 100) as bs
-	print x
-	where 
-		actions = sequence $ map playBot bs 
 
+   
 defaultMain = do
 	--x <- runGame :: IO (TexasHoldemPoker, String)
 	--putStrLn $ snd x
@@ -215,6 +235,6 @@ defaultMain = do
 	-- ----
 	--x <- playBot folderBot (botState [])
 	--print x
-	-- round2_ [] dummyBots
-    print $ collectBots [] $ splitPots2 [] dummyBots
-    print "ok"
+	round2_ dummyBots
+    -- print $ collectBots [] $ splitPots2 [] dummyBots
+    -- print "ok"
