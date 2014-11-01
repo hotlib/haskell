@@ -18,7 +18,7 @@ instance PokerGame TexasHoldemPoker where
 	playGame = playGame_ 
 
 pokerBot :: String -> PokerAction RoundStartAction -> PokerAction PlayAction -> PokerBot
-pokerBot n r p = PokerBot { _name = n, _startAction = r, _playAction = p, _folded = False}
+pokerBot n r p = PokerBot { _name = n, _startAction = r, _playAction = p, _folded = False, _currentCall = 0}
 
 playBot :: CompleteBot -> IO PlayAction
 playBot (b, s) = runReaderT action s
@@ -88,13 +88,14 @@ round_ :: TexasHoldemPoker -> GamePlay TexasHoldemPoker
 round_ t = smallBlindBet t >>= bigBlindBet >>= normalRound
 
 updateBotState :: PlayAction -> CompleteBot -> CompleteBot
-updateBotState a bot@(b, s) = 
+updateBotState a b@(p, s) = 
 	case a of 
-		Fold -> bot
-		Call -> (b, updateState (subtract call) (+ call) s)
-		(Raise m) -> let amount = m + call in (b, updateState (subtract amount) (+ amount) s)
+		Fold -> b
+		Call -> (p&currentCall .~ (call + inv), updateState (subtract call) (+ call) s)
+		(Raise m) -> let raise = m + call in (p&currentCall .~ (raise + inv), updateState (subtract raise) (+ raise) s)
 	where
-		call = s^.callNeeded	
+		call = callneeded b
+		inv = invested b	
 
 
 wrapperRound :: TexasHoldemPoker -> GamePlay TexasHoldemPoker
@@ -106,9 +107,9 @@ normalRound t = iterateUntilM (\thp -> continueBetting $ thp^.bots) normalRound2
 normaliseCalls :: [CompleteBot] -> [CompleteBot]
 normaliseCalls bs = map normalise bs 
 	where 
-		normalise (p,s) = (p,s&callNeeded .~ (maxInvestment - (s^.investedInPot))) 
+		normalise b@(p,s) = (p&currentCall .~ call, s&callNeeded .~ (call - (invested b))) 
 		bots = filter (not . hasFolded) bs
-		maxInvestment = maximum $ map invested bots
+		call = maximum $ map currentcall bs
 
 normalRound2 :: TexasHoldemPoker -> GamePlay TexasHoldemPoker
 normalRound2 t = do
@@ -129,8 +130,8 @@ dummyBots2 = [callBot "xx",
 			  raiseBot "xxx",
 			  folderBot "x"] 
 
-firstAction :: CompleteBot -> IO [CompleteBot]
-firstAction b = do 
+firstBot :: CompleteBot -> IO [CompleteBot]
+firstBot b = do 
 		action <- playBot b
 		print $ "----->>>>> action (first) " ++ (show action) ++ " Bot: " ++ (show $ updateBotState action b)
 		let newBot = updateBotState action b 
@@ -152,37 +153,35 @@ invested = ((^.investedInPot) . snd)
 callneeded :: CompleteBot -> Money
 callneeded = ((^.callNeeded) . snd)
 
+currentcall :: CompleteBot -> Money
+currentcall = ((^.currentCall) . fst)
+
 continueBetting :: [CompleteBot] -> Bool
 continueBetting bs = all (\b -> (invested $ head bots) == invested b) bots 
 	where bots = filter (not . hasFolded) bs
 
-secondAction :: PlayAction -> CompleteBot -> CompleteBot -> [CompleteBot] -> IO [CompleteBot]
-secondAction Call b newB bs
-	| callneeded b > ((snd b)^.moneyLeft) = return $ newB : bs --TODO somehow mark all in cases
-	| otherwise = return $ newB : bs
-secondAction Fold b newB bs = return $ (setFolded newB) : bs
-secondAction _ b newB bs = return $ newB : bs
+restBot :: PlayAction -> CompleteBot -> [CompleteBot] -> IO [CompleteBot]
+restBot Fold b bs = return $ (setFolded b) : bs
+restBot _ b bs = return $ b : bs
 
 updater :: CompleteBot -> [CompleteBot] -> IO [CompleteBot]
 updater b [] = do 
-	if hasFolded b  then
+	if hasFolded b then
 		return [b] 
 	else
-		firstAction b
+		firstBot b
 updater (p,s) bs@(b1:_) = 
 	if hasFolded b then
 		return $ b : bs
 	else
 		do
 		 action <- playBot b
-		 print $ "----->>>>> action " ++ (show action) ++ " Bot: " ++ (show $ updateBotState action b) ++ " invB: " ++ (show invB) ++ " invB1 " ++ (show invB1)
+		 print $ "----->>>>> action " ++ (show action) ++ " Bot: " ++ (show $ updateBotState action b) -- ++ " invB: " ++ (show invB) ++ " invB1 " ++ (show invB1)
 		 let newBot = updateBotState action b
-		  in secondAction action b newBot bs  		 
+		  in restBot action newBot bs  		 
 	where
-    	b = (p,s&callNeeded .~ newCall)
-    	newCall = invB1 - invB
-    	invB = invested b 
-    	invB1 = if hasFolded b1 then (invested b1) + (callneeded b1) else (invested b1) -- TODO doesn't work for all in case
+    	b = (p&currentCall .~ (currentcall b1) ,s&callNeeded .~ needed)
+    	needed = (currentcall b1) - (invested b)
 
 playGame_ :: TexasHoldemPoker -> GamePlay TexasHoldemPoker
 playGame_ x = do

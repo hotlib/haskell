@@ -29,13 +29,13 @@ type Money = Int
 type PokerAction a = ReaderT BotState IO a
 type GamePlay a = WriterT String IO a 
 
-data PokerBot = PokerBot { _name :: String, _startAction :: PokerAction RoundStartAction,  _playAction :: PokerAction PlayAction, _folded :: Bool} 
+data PokerBot = PokerBot { _name :: String, _startAction :: PokerAction RoundStartAction,  _playAction :: PokerAction PlayAction, _folded :: Bool, _currentCall :: Money} 
 data BotState = BotState {_hole :: Hand, _moneyLeft :: Int, _investedInPot :: Int, _callNeeded :: Int, _potTotal :: Int, _communityCards :: CommunityCards} -- deriving (Show)
 
 data TexasHoldemPoker = TexasHoldemPoker { _bots :: [(PokerBot, BotState)], _deck :: Deck}  deriving (Show)
 
 instance Show PokerBot where
-  show b = "POKERBOT (folded: " ++ (show $ _folded b) ++ ") " ++ _name b
+  show b = "POKERBOT (folded: " ++ (show $ _folded b) ++ ", call: " ++ (show $ _currentCall b)  ++ ") " ++ _name b
 
 instance Show BotState where
   show b = "BOTSTATE investedInPot: " ++ (show $ _investedInPot b) ++ " _moneyLeft: " ++ (show $ _moneyLeft b) ++ " _callNeeded: " ++ (show $ _callNeeded b)
