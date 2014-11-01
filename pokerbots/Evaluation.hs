@@ -4,24 +4,7 @@ import Data.List
 import Data.List.Split
 import Control.Monad.Trans.Cont
 import Data.Maybe 
-
-data Suit = Club | Diamond | Heart | Spade deriving (Eq, Show, Enum, Ord)
-data Value = Two | Three | Four | Five | Six | Seven | Eight | Nine | Ten | Jack | Queen | King | Ace  deriving (Eq, Show, Enum, Ord)
-type Card = (Suit, Value)
-data HandEvaluation = HighCard [Value] 
-					| OnePair [Value] 
-					| TwoPair [Value]
-					| ThreeOfAKind [Value]
-					| Straight [Value] 
-					| Flush [Value]
-					| FullHouse [Value] 
-					| FourOfAKind [Value]
-					| StraightFlush [Value] deriving (Eq, Show, Ord)
-
-type Deck = [Card]
-type Hand = [Card]
-type CommunityCards = [Card]
-type Money = Int 
+import Defs
 
 freq :: Hand -> [(Value, Int)]
 freq h = sortBy f $ map (\x -> (head x, length x)) . group . sort $ values

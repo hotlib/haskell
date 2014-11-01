@@ -3,60 +3,17 @@ module Pokerbot where
 import Prelude hiding (round)
 import Control.Monad.Reader
 import Control.Monad.Writer
-import Control.Lens hiding (Fold)
-import Evaluation 
+import Control.Lens hiding (Fold, folded)
 import Data.List.Split
 import Control.Monad.Trans.Cont
 import Data.Maybe 
+import Control.Monad.Loops
+import Defs
+import Evaluation 
 
-data PlayAction = Fold | Call | Raise Money deriving (Eq, Show, Ord)
-data RoundStartAction = Check | Bet Money | Fold_ deriving (Eq, Show, Ord)
-
-type PokerAction a = ReaderT BotState IO a
-type GamePlay a = WriterT String IO a 
-
-data PokerBot = PokerBot { _name :: String, _startAction :: PokerAction RoundStartAction,  _playAction :: PokerAction PlayAction } 
-data BotState = BotState {_hole :: Hand, _moneyLeft :: Int, _investedInPot :: Int, _callNeeded :: Int, _potTotal :: Int, _communityCards :: CommunityCards} -- deriving (Show)
-
-data TexasHoldemPoker = TexasHoldemPoker { _bots :: [(PokerBot, BotState)], _deck :: Deck}  deriving (Show)
-
-instance Show PokerBot where
-  show b = "POKERBOT: " ++ _name b
-
-instance Show BotState where
-  show b = "BOTSTATE investedInPot: " ++ (show $ _investedInPot b) ++ " _moneyLeft: " ++ (show $ _moneyLeft b) ++ " _callNeeded: " ++ (show $ _callNeeded b)
-
-type CompleteBot = (PokerBot, BotState)
-type Pot = (Money, [CompleteBot])
-type Pot2 = [(Money, CompleteBot)]
-
---instance Show Pot where
---  show p = "Pot money: " ++ fst p ++ " bots: " ++ show $ snd p
-
-makeLenses ''PokerBot
-makeLenses ''BotState
-makeLenses ''TexasHoldemPoker
-
-instance Ord PokerBot where
-    compare x y
-        | x^.name == y^.name    =  EQ
-        | x^.name <= y^.name    =  LT
-        | otherwise =  GT
-
-instance Ord BotState where
-	compare x y
-         | x^.moneyLeft == y^.moneyLeft    =  EQ
-         | x^.moneyLeft <= y^.moneyLeft    =  LT
-         | otherwise =  GT
-
-instance Eq BotState where
-	(==) x y = x^.moneyLeft == y^.moneyLeft
-
-instance Eq PokerBot where
-	(==) x y = x^.name == y^.name
 
 pokerBot :: String -> PokerAction RoundStartAction -> PokerAction PlayAction -> PokerBot
-pokerBot n r p = PokerBot { _name = n, _startAction = r, _playAction = p}
+pokerBot n r p = PokerBot { _name = n, _startAction = r, _playAction = p, _folded = False}
 
 playBot :: CompleteBot -> IO PlayAction
 playBot (b, s) = runReaderT action s
@@ -133,7 +90,7 @@ bet1 t = let
 	return $ (t&bots .~ b:bs2)  
 
 round_ :: TexasHoldemPoker -> GamePlay TexasHoldemPoker
-round_ t = smallBlindBet t >>= bigBlindBet >>= normalRound
+round_ t = smallBlindBet t >>= bigBlindBet >>= normalRound2
 
 updateBotState :: PlayAction -> CompleteBot -> CompleteBot
 updateBotState a bot@(b, s) = 
@@ -144,8 +101,12 @@ updateBotState a bot@(b, s) =
 	where
 		call = s^.callNeeded	
 
+
 normalRound :: TexasHoldemPoker -> GamePlay TexasHoldemPoker
-normalRound t = do
+normalRound t = iterateUntilM (\_ -> True) normalRound2 t
+
+normalRound2 :: TexasHoldemPoker -> GamePlay TexasHoldemPoker
+normalRound2 t = do
 	liftIO $ print $ t^.bots
 	liftIO $ print "-------------------------------------"
 	bs <- liftIO updatedBots
@@ -160,19 +121,38 @@ firstAction :: CompleteBot -> IO [CompleteBot]
 firstAction b = do 
 		action <- playBot b
 		print $ "action FIRST " ++ (show action) ++ " Bot: " ++ (show b)
-		let newBot = updateBotState action b in return [newBot]
+		let newBot = updateBotState action b 
+		 in 
+		 if action /= Fold then 
+		 	return [newBot]
+		 else
+		 	return [(setFolded newBot)]
 	
+hasFolded :: CompleteBot -> Bool
+hasFolded b = (fst b)^.folded
+
+setFolded :: CompleteBot -> CompleteBot
+setFolded b = ((fst b)&folded .~ True, snd b)
+
 updater :: CompleteBot -> [CompleteBot] -> IO [CompleteBot]
 updater b [] = do 
-	if ((snd b)^.callNeeded) == 0 then
-		return [b] -- he was the big blind
+	if ((snd b)^.callNeeded) == 0 || hasFolded b  then
+		return [b] -- he was the big blind or folded
 	else
 		firstAction b
-updater (p,s) bs@(b1:_) = do 
-	action <- playBot b
-	print $ "action " ++ (show action) ++ " Bot: " ++ (show b) ++ " invB: " ++ (show invB) ++ " invB1 " ++ (show invB1)
-	let newBot = updateBotState action b
-	 in return $ newBot : bs
+updater (p,s) bs@(b1:_) = 
+	if hasFolded b then
+		return $ b : bs
+	else
+		do
+		 action <- playBot b
+		 print $ "action " ++ (show action) ++ " Bot: " ++ (show b) ++ " invB: " ++ (show invB) ++ " invB1 " ++ (show invB1)
+		 let newBot = updateBotState action b
+		  in 
+		  if action /= Fold then 
+		  	return $ newBot : bs
+		  else
+		  	return $ (setFolded newBot) : bs
 	where
     	b = (p,s&callNeeded .~ newCall)
     	newCall = invB1 - invB
@@ -206,19 +186,6 @@ transform h = fromJust $ runCont (evaluateHand h) id
 
 runGame :: (PokerGame g) => IO (g, String)
 runGame = runWriterT $ initGame dummyBots2 >>= playGame  
-
-splitPots :: [Pot] -> [CompleteBot] -> [Pot]
-splitPots pots [] = pots
-splitPots pots [_] = pots
-splitPots pots bs = splitPots updatePot otherBots 
-	where
-		bsInvest = map (\(p,s) -> (s^.investedInPot, (p,s))) bs 
-		minimumInvestment = minimum $ map potInvestment bs 
-		-- minBots = filter (\(n, _) -> n == (fst . minimum) bsInvest) bsInvest
-		otherBots = filter (\x -> minimumInvestment < potInvestment x) bs
-		potSize = (fst . minimum $ bsInvest) * (fromIntegral (length bsInvest))
-		updatePot = (potSize,bs) : pots
-		potInvestment = ((^.investedInPot) . snd)
 
 splitPots2 :: [Pot2] -> [CompleteBot] -> [Pot2]
 splitPots2 pots [] = pots
