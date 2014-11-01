@@ -72,7 +72,7 @@ smallBlindBet :: TexasHoldemPoker -> GamePlay TexasHoldemPoker
 smallBlindBet t = return $ t&bots %~ \(b:bs) -> bs ++ [(fst b, invest sblind $ snd b)]
 
 bigBlindBet :: TexasHoldemPoker -> GamePlay TexasHoldemPoker
-bigBlindBet t = return $ t&bots %~ \(b:bs) -> (fst b, (invest bblind $ snd b)) : bs  
+bigBlindBet t = return $ t&bots %~ \(b:bs) -> bs ++ [(fst b, (invest bblind $ snd b))]
 
 rround :: Money -> [(PokerBot, BotState)] -> [(PokerBot, BotState)]
 rround = undefined -- foldl id 
@@ -97,6 +97,9 @@ updateBotState a bot@(b, s) =
 		call = s^.callNeeded	
 
 
+wrapperRound :: TexasHoldemPoker -> GamePlay TexasHoldemPoker
+wrapperRound t = undefined
+
 normalRound :: TexasHoldemPoker -> GamePlay TexasHoldemPoker
 normalRound t = iterateUntilM (\thp -> continueBetting $ thp^.bots) normalRound2 t
 
@@ -118,7 +121,8 @@ normalRound2 t = do
 	liftIO $ print "---------------UPDATED END----------------------"
 	return $ t&bots .~ bs
 	where 
-		updatedBots = foldl (\x y -> x >>= (updater y)) (return []) $ t^.bots
+		updatedBots = foldl (\x y -> x >>= (updater y)) (return []) normalizedBots
+		normalizedBots = normaliseCalls $ t^.bots
  	
 dummyBots2 = [callBot "xx",  
 			  folderBot "xxxx",
@@ -143,16 +147,26 @@ setFolded :: CompleteBot -> CompleteBot
 setFolded b = ((fst b)&folded .~ True, snd b)
 
 invested :: CompleteBot -> Money
-invested b = ((^.investedInPot) . snd) b
+invested = ((^.investedInPot) . snd) 
+
+callneeded :: CompleteBot -> Money
+callneeded = ((^.callNeeded) . snd)
 
 continueBetting :: [CompleteBot] -> Bool
 continueBetting bs = all (\b -> (invested $ head bots) == invested b) bots 
 	where bots = filter (not . hasFolded) bs
 
+secondAction :: PlayAction -> CompleteBot -> CompleteBot -> [CompleteBot] -> IO [CompleteBot]
+secondAction Call b newB bs
+	| callneeded b > ((snd b)^.moneyLeft) = return $ newB : bs --TODO somehow mark all in cases
+	| otherwise = return $ newB : bs
+secondAction Fold b newB bs = return $ (setFolded newB) : bs
+secondAction _ b newB bs = return $ newB : bs
+
 updater :: CompleteBot -> [CompleteBot] -> IO [CompleteBot]
 updater b [] = do 
-	if ((snd b)^.callNeeded) == 0 || hasFolded b  then
-		return [b] -- he was the big blind or folded
+	if hasFolded b  then
+		return [b] 
 	else
 		firstAction b
 updater (p,s) bs@(b1:_) = 
@@ -163,18 +177,12 @@ updater (p,s) bs@(b1:_) =
 		 action <- playBot b
 		 print $ "----->>>>> action " ++ (show action) ++ " Bot: " ++ (show $ updateBotState action b) ++ " invB: " ++ (show invB) ++ " invB1 " ++ (show invB1)
 		 let newBot = updateBotState action b
-		  in 
-		  if action /= Fold then 
-		  	return $ newBot : bs
-		  else
-		  	return $ (setFolded newBot) : bs
+		  in secondAction action b newBot bs  		 
 	where
     	b = (p,s&callNeeded .~ newCall)
     	newCall = invB1 - invB
     	invB = invested b 
-        -- invB1 = if (invested b1) < (callneeded b1) then (callneeded b1) else (invested b1) 
-    	invB1 = if hasFolded b1 then (invested b1) + (callneeded b1) else (invested b1)
-    	callneeded = ((^.callNeeded) . snd)
+    	invB1 = if hasFolded b1 then (invested b1) + (callneeded b1) else (invested b1) -- TODO doesn't work for all in case
 
 playGame_ :: TexasHoldemPoker -> GamePlay TexasHoldemPoker
 playGame_ x = do
