@@ -8,9 +8,14 @@ import Data.List.Split
 import Control.Monad.Trans.Cont
 import Data.Maybe 
 import Control.Monad.Loops
+import Control.Applicative
 import Defs
 import Evaluation 
 
+instance PokerGame TexasHoldemPoker where
+	initGame = initGame_
+	round = round_
+	playGame = playGame_ 
 
 pokerBot :: String -> PokerAction RoundStartAction -> PokerAction PlayAction -> PokerBot
 pokerBot n r p = PokerBot { _name = n, _startAction = r, _playAction = p, _folded = False}
@@ -37,16 +42,6 @@ playStartExample :: PokerAction RoundStartAction
 playStartExample = do
 	cards <- ask
 	return Fold_
-
-class PokerGame a where 
-	initGame :: [PokerBot] -> GamePlay a
-	round ::  a -> GamePlay a 
-	playGame :: a -> GamePlay a 
-	
-instance PokerGame TexasHoldemPoker where
-	initGame = initGame_
-	round = round_
-	playGame = playGame_ 
 
 folderBot :: String -> PokerBot
 folderBot name = pokerBot name (return Fold_) (return Fold)
@@ -90,7 +85,7 @@ bet1 t = let
 	return $ (t&bots .~ b:bs2)  
 
 round_ :: TexasHoldemPoker -> GamePlay TexasHoldemPoker
-round_ t = smallBlindBet t >>= bigBlindBet >>= normalRound2
+round_ t = smallBlindBet t >>= bigBlindBet >>= normalRound
 
 updateBotState :: PlayAction -> CompleteBot -> CompleteBot
 updateBotState a bot@(b, s) = 
@@ -103,36 +98,56 @@ updateBotState a bot@(b, s) =
 
 
 normalRound :: TexasHoldemPoker -> GamePlay TexasHoldemPoker
-normalRound t = iterateUntilM (\_ -> True) normalRound2 t
+normalRound t = iterateUntilM (\thp -> continueBetting $ thp^.bots) normalRound2 t
+
+normaliseCalls :: [CompleteBot] -> [CompleteBot]
+normaliseCalls bs = map normalise bs 
+	where 
+		normalise (p,s) = (p,s&callNeeded .~ (maxInvestment - (s^.investedInPot))) 
+		bots = filter (not . hasFolded) bs
+		maxInvestment = maximum $ map invested bots
 
 normalRound2 :: TexasHoldemPoker -> GamePlay TexasHoldemPoker
 normalRound2 t = do
+	liftIO $ print "-----------NOT UPDATED--------------------------"
 	liftIO $ print $ t^.bots
-	liftIO $ print "-------------------------------------"
-	bs <- liftIO updatedBots
+	liftIO $ print "-----------NOT UPDATED END----------------------"
+	bs <- liftIO $ (normaliseCalls . reverse) <$> updatedBots
+	liftIO $ print "---------------UPDATED--------------------------"
 	liftIO $ print bs
+	liftIO $ print "---------------UPDATED END----------------------"
 	return $ t&bots .~ bs
 	where 
 		updatedBots = foldl (\x y -> x >>= (updater y)) (return []) $ t^.bots
  	
-dummyBots2 = [callBot "xx",  folderBot "xxxx",raiseBot "xxx", folderBot "x"] 
+dummyBots2 = [callBot "xx",  
+			  folderBot "xxxx",
+			  raiseBot "xxx",
+			  folderBot "x"] 
 
 firstAction :: CompleteBot -> IO [CompleteBot]
 firstAction b = do 
 		action <- playBot b
-		print $ "action FIRST " ++ (show action) ++ " Bot: " ++ (show b)
+		print $ "----->>>>> action (first) " ++ (show action) ++ " Bot: " ++ (show $ updateBotState action b)
 		let newBot = updateBotState action b 
 		 in 
 		 if action /= Fold then 
 		 	return [newBot]
 		 else
-		 	return [(setFolded newBot)]
+		 	return [setFolded newBot]
 	
 hasFolded :: CompleteBot -> Bool
 hasFolded b = (fst b)^.folded
 
 setFolded :: CompleteBot -> CompleteBot
 setFolded b = ((fst b)&folded .~ True, snd b)
+
+invested :: CompleteBot -> Money
+invested b = ((^.investedInPot) . snd) b
+
+continueBetting :: [CompleteBot] -> Bool
+continueBetting bs = all (\b -> (invested $ head bots) == invested b) bots 
+	where bots = filter (not . hasFolded) bs
 
 updater :: CompleteBot -> [CompleteBot] -> IO [CompleteBot]
 updater b [] = do 
@@ -146,7 +161,7 @@ updater (p,s) bs@(b1:_) =
 	else
 		do
 		 action <- playBot b
-		 print $ "action " ++ (show action) ++ " Bot: " ++ (show b) ++ " invB: " ++ (show invB) ++ " invB1 " ++ (show invB1)
+		 print $ "----->>>>> action " ++ (show action) ++ " Bot: " ++ (show $ updateBotState action b) ++ " invB: " ++ (show invB) ++ " invB1 " ++ (show invB1)
 		 let newBot = updateBotState action b
 		  in 
 		  if action /= Fold then 
@@ -157,8 +172,8 @@ updater (p,s) bs@(b1:_) =
     	b = (p,s&callNeeded .~ newCall)
     	newCall = invB1 - invB
     	invB = invested b 
-        invB1 = if (invested b1) < (callneeded b1) then (callneeded b1) else (invested b1) 
-    	invested = ((^.investedInPot) . snd)
+        -- invB1 = if (invested b1) < (callneeded b1) then (callneeded b1) else (invested b1) 
+    	invB1 = if hasFolded b1 then (invested b1) + (callneeded b1) else (invested b1)
     	callneeded = ((^.callNeeded) . snd)
 
 playGame_ :: TexasHoldemPoker -> GamePlay TexasHoldemPoker

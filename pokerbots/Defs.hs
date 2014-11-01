@@ -35,7 +35,7 @@ data BotState = BotState {_hole :: Hand, _moneyLeft :: Int, _investedInPot :: In
 data TexasHoldemPoker = TexasHoldemPoker { _bots :: [(PokerBot, BotState)], _deck :: Deck}  deriving (Show)
 
 instance Show PokerBot where
-  show b = "POKERBOT: " ++ _name b
+  show b = "POKERBOT (folded: " ++ (show $ _folded b) ++ ") " ++ _name b
 
 instance Show BotState where
   show b = "BOTSTATE investedInPot: " ++ (show $ _investedInPot b) ++ " _moneyLeft: " ++ (show $ _moneyLeft b) ++ " _callNeeded: " ++ (show $ _callNeeded b)
@@ -68,3 +68,10 @@ instance Eq BotState where
 
 instance Eq PokerBot where
 	(==) x y = x^.name == y^.name
+
+class PokerGame a where 
+	initGame :: [PokerBot] -> GamePlay a
+	round ::  a -> GamePlay a 
+	playGame :: a -> GamePlay a 
+	
+
