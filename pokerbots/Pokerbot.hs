@@ -112,7 +112,7 @@ wrapperRound :: TexasHoldemPoker -> GamePlay TexasHoldemPoker
 wrapperRound t = undefined
 
 normalRound :: TexasHoldemPoker -> GamePlay TexasHoldemPoker
-normalRound t = iterateUntilM (\thp -> continueBetting $ thp^.bots) normalRound2 t
+normalRound t = iterateUntilM (\thp -> finishedBetting $ thp^.bots) normalRound2 t
 
 normaliseCalls :: [CompleteBot] -> [CompleteBot]
 normaliseCalls bs = map normalise bs 
@@ -150,7 +150,13 @@ firstBot b = do
 		 	return [newBot]
 		 else
 		 	return [setFolded newBot]
-	
+
+notPlaying :: CompleteBot -> Bool	
+notPlaying b = hasFolded b || isAllIn b
+
+isAllIn :: CompleteBot -> Bool
+isAllIn b = (fst b)^.botStatus == AllIn
+
 hasFolded :: CompleteBot -> Bool
 hasFolded b = (fst b)^.botStatus == Folded
 
@@ -172,9 +178,14 @@ moneyleft = ((^.moneyLeft) . snd)
 currentcall :: CompleteBot -> Money
 currentcall = ((^.currentCall) . fst)
 
-continueBetting :: [CompleteBot] -> Bool
-continueBetting bs = all (\b -> (invested $ head bots) == invested b) bots 
-	where bots = filter (not . hasFolded) bs
+finishedBetting :: [CompleteBot] -> Bool
+finishedBetting bs = everyoneAllIn || everyoneFolded || everyoneBetTheSame   
+	where 
+		maxBet = maximum $ map invested playingBots 
+		everyoneAllIn = all isAllIn playingBots
+		everyoneFolded = null playingBots
+		everyoneBetTheSame = all (\b -> maxBet == invested b || (maxBet > invested b && isAllIn b)) playingBots  
+		playingBots = filter (not . hasFolded) bs
 
 restBot :: PlayAction -> CompleteBot -> [CompleteBot] -> IO [CompleteBot]
 restBot Fold b bs = return $ (setFolded b) : bs
@@ -182,12 +193,12 @@ restBot _ b bs = return $ b : bs
 
 updater :: CompleteBot -> [CompleteBot] -> IO [CompleteBot]
 updater b [] = do 
-	if hasFolded b then
+	if notPlaying b then
 		return [b] 
 	else
 		firstBot b
 updater (p,s) bs@(b1:_) = 
-	if hasFolded b then
+	if notPlaying b then
 		return $ b : bs
 	else
 		do
