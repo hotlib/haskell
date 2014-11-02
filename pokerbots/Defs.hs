@@ -6,6 +6,7 @@ import Control.Lens hiding (Fold, folded)
 
 data PlayAction = Fold | Call | Raise Money deriving (Eq, Show, Ord)
 data RoundStartAction = Check | Bet Money | Fold_ deriving (Eq, Show, Ord)
+data BotStatus = Playing | Folded | AllIn deriving (Eq, Show, Ord)
 
 data Suit = Club | Diamond | Heart | Spade deriving (Eq, Show, Enum, Ord)
 data Value = Two | Three | Four | Five | Six | Seven | Eight | Nine | Ten | Jack | Queen | King | Ace  deriving (Eq, Show, Enum, Ord)
@@ -29,13 +30,13 @@ type Money = Int
 type PokerAction a = ReaderT BotState IO a
 type GamePlay a = WriterT String IO a 
 
-data PokerBot = PokerBot { _name :: String, _startAction :: PokerAction RoundStartAction,  _playAction :: PokerAction PlayAction, _folded :: Bool, _currentCall :: Money} 
+data PokerBot = PokerBot { _name :: String, _startAction :: PokerAction RoundStartAction,  _playAction :: PokerAction PlayAction, _botStatus :: BotStatus, _currentCall :: Money} 
 data BotState = BotState {_hole :: Hand, _moneyLeft :: Int, _investedInPot :: Int, _callNeeded :: Int, _potTotal :: Int, _communityCards :: CommunityCards} -- deriving (Show)
 
 data TexasHoldemPoker = TexasHoldemPoker { _bots :: [(PokerBot, BotState)], _deck :: Deck}  deriving (Show)
 
 instance Show PokerBot where
-  show b = "POKERBOT (folded: " ++ (show $ _folded b) ++ ", call: " ++ (show $ _currentCall b)  ++ ") " ++ _name b
+  show b = "POKERBOT (status: " ++ (show $ _botStatus b) ++ ", call: " ++ (show $ _currentCall b)  ++ ") " ++ _name b
 
 instance Show BotState where
   show b = "BOTSTATE investedInPot: " ++ (show $ _investedInPot b) ++ " _moneyLeft: " ++ (show $ _moneyLeft b) ++ " _callNeeded: " ++ (show $ _callNeeded b)

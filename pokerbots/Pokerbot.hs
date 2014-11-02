@@ -18,7 +18,7 @@ instance PokerGame TexasHoldemPoker where
 	playGame = playGame_ 
 
 pokerBot :: String -> PokerAction RoundStartAction -> PokerAction PlayAction -> PokerBot
-pokerBot n r p = PokerBot { _name = n, _startAction = r, _playAction = p, _folded = False, _currentCall = 0}
+pokerBot n r p = PokerBot { _name = n, _startAction = r, _playAction = p, _botStatus = Playing, _currentCall = 0}
 
 playBot :: CompleteBot -> IO PlayAction
 playBot (b, s) = runReaderT action s
@@ -87,13 +87,23 @@ bet1 t = let
 round_ :: TexasHoldemPoker -> GamePlay TexasHoldemPoker
 round_ t = smallBlindBet t >>= bigBlindBet >>= normalRound
 
+helper :: Money -> Money -> Money -> CompleteBot -> CompleteBot
+helper callOrRaise currentInv money b = 
+	if money <= callOrRaise then
+		setAllIn . (us callOrRaise currentInv money) $ b
+	else
+		(us callOrRaise currentInv callOrRaise) b
+  where
+  	us c i m (p,s)  = (p&currentCall .~ (c + i), updateState (subtract m) (+ m) s)
+
 updateBotState :: PlayAction -> CompleteBot -> CompleteBot
-updateBotState a b@(p, s) = 
+updateBotState a b = 
 	case a of 
-		Fold -> b
-		Call -> (p&currentCall .~ (call + inv), updateState (subtract call) (+ call) s)
-		(Raise m) -> let raise = m + call in (p&currentCall .~ (raise + inv), updateState (subtract raise) (+ raise) s)
+		Fold -> setFolded b
+		Call -> helper call inv money b
+		(Raise m) -> helper (m + call) inv money b
 	where
+		money = moneyleft b
 		call = callneeded b
 		inv = invested b	
 
@@ -142,16 +152,22 @@ firstBot b = do
 		 	return [setFolded newBot]
 	
 hasFolded :: CompleteBot -> Bool
-hasFolded b = (fst b)^.folded
+hasFolded b = (fst b)^.botStatus == Folded
 
 setFolded :: CompleteBot -> CompleteBot
-setFolded b = ((fst b)&folded .~ True, snd b)
+setFolded b = ((fst b)&botStatus .~ Folded, snd b)
+
+setAllIn :: CompleteBot -> CompleteBot
+setAllIn b = ((fst b)&botStatus .~ AllIn, snd b)
 
 invested :: CompleteBot -> Money
 invested = ((^.investedInPot) . snd) 
 
 callneeded :: CompleteBot -> Money
 callneeded = ((^.callNeeded) . snd)
+
+moneyleft :: CompleteBot -> Money
+moneyleft = ((^.moneyLeft) . snd)
 
 currentcall :: CompleteBot -> Money
 currentcall = ((^.currentCall) . fst)
