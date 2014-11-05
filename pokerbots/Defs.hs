@@ -21,6 +21,10 @@ data HandEvaluation = HighCard [Value]
 					| FourOfAKind [Value]
 					| StraightFlush [Value] deriving (Eq, Show, Ord)
 
+
+data BotSimple = BotSimple {_money :: Int,  _botName :: String, _status :: BotStatus} deriving (Eq, Show, Ord)
+data PotSimple = PotSimple { _bet :: Int, _botss :: [BotSimple]} deriving (Eq, Show, Ord)
+
 type Deck = [Card]
 type Hand = [Card]
 type CommunityCards = [Card]
@@ -31,7 +35,7 @@ type PokerAction a = ReaderT BotState IO a
 type GamePlay a = WriterT String IO a 
 
 data PokerBot = PokerBot { _name :: String, _startAction :: PokerAction RoundStartAction,  _playAction :: PokerAction PlayAction, _botStatus :: BotStatus, _currentCall :: Money} 
-data BotState = BotState {_hole :: Hand, _moneyLeft :: Int, _investedInPot :: Int, _callNeeded :: Int, _potTotal :: Int, _communityCards :: CommunityCards} -- deriving (Show)
+data BotState = BotState {_hole :: Hand, _moneyLeft :: Int, _investedInPot :: Int, _callNeeded :: Int, _potTotal :: [PotSimple], _communityCards :: CommunityCards} -- deriving (Show)
 
 data TexasHoldemPoker = TexasHoldemPoker { _bots :: [(PokerBot, BotState)], _deck :: Deck}  deriving (Show)
 
@@ -39,7 +43,7 @@ instance Show PokerBot where
   show b = "POKERBOT (status: " ++ (show $ _botStatus b) ++ ", call: " ++ (show $ _currentCall b)  ++ ") " ++ _name b
 
 instance Show BotState where
-  show b = "BOTSTATE investedInPot: " ++ (show $ _investedInPot b) ++ " _moneyLeft: " ++ (show $ _moneyLeft b) ++ " _callNeeded: " ++ (show $ _callNeeded b)
+  show b = "BOTSTATE investedInPot: " ++ (show $ _investedInPot b) ++ " _moneyLeft: " ++ (show $ _moneyLeft b) ++ " _callNeeded: " ++ (show $ _callNeeded b) -- ++ " _potTotal: " ++ (show $ _potTotal b)
 
 type CompleteBot = (PokerBot, BotState)
 type Pot = (Money, [CompleteBot])
@@ -51,6 +55,8 @@ type Pot2 = [(Money, CompleteBot)]
 makeLenses ''PokerBot
 makeLenses ''BotState
 makeLenses ''TexasHoldemPoker
+makeLenses ''PotSimple
+makeLenses ''BotSimple
 
 instance Ord PokerBot where
     compare x y
