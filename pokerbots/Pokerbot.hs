@@ -108,6 +108,19 @@ updateBotState a b =
 		call = callneeded b
 		inv = invested b	
 
+bettingRound :: TexasHoldemPoker -> GamePlay TexasHoldemPoker
+bettingRound t = undefined
+
+
+betting :: [CompleteBot] -> [CompleteBot] -> IO [CompleteBot]	
+betting (b:bs) playedBots = (playRoundStartBot b) >>= (evalRoundStart b) >>= (\bot -> betting bs (bot : playedBots))
+betting [] playedBots = return playedBots
+
+evalRoundStart :: CompleteBot -> RoundStartAction -> IO CompleteBot
+evalRoundStart b Fold_ = return $ updateBotState Fold b
+evalRoundStart b Check = return b
+evalRoundStart b (Bet m) = return $ (updateBotState (Raise m) b) -- Raise also take inv - WRONG
+
 
 normalRound :: TexasHoldemPoker -> GamePlay TexasHoldemPoker
 normalRound t = iterateUntilM (\thp -> finishedBetting $ thp^.bots) normalRound2 t
