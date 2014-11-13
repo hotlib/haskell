@@ -18,9 +18,6 @@ instance PokerGame TexasHoldemPoker where
 	round = round_
 	playGame = playGame_ 
 
-pokerBot :: String -> PokerAction RoundStartAction -> PokerAction PlayAction -> PokerBot
-pokerBot n r p = PokerBot { _name = n, _startAction = r, _playAction = p, _botStatus = Playing, _currentCall = 0}
-
 playBot :: CompleteBot -> IO PlayAction
 playBot (b, s) = runReaderT action s
 	where
@@ -44,15 +41,6 @@ playStartExample = do
 	cards <- ask
 	return Fold_
 
-folderBot :: String -> PokerBot
-folderBot name = pokerBot name (return Fold_) (return Fold)
-
-callBot :: String -> PokerBot
-callBot name = pokerBot name (return Fold_) (return Call)
-
-raiseBot :: String -> PokerBot
-raiseBot name = pokerBot name (return Fold_) (return $ Raise 25)
-
 updateState f1 f2 = (moneyLeft %~ f1) . (investedInPot %~ f2)
 
 invest ::  Money -> BotState -> BotState
@@ -63,30 +51,14 @@ invest m b = let
 	in
 	b & update
 
-bblind :: Money
-bblind = 10
-
-sblind :: Money
-sblind = 5
-
 smallBlindBet :: TexasHoldemPoker -> GamePlay TexasHoldemPoker
 smallBlindBet t = return $ t&bots %~ \(b:bs) -> bs ++ [(fst b, invest sblind $ snd b)]
 
 bigBlindBet :: TexasHoldemPoker -> GamePlay TexasHoldemPoker
 bigBlindBet t = return $ t&bots %~ \(b:bs) -> bs ++ [(fst b, (invest bblind $ snd b))]
 
-rround :: Money -> [(PokerBot, BotState)] -> [(PokerBot, BotState)]
-rround = undefined -- foldl id 
-
-bet1 :: TexasHoldemPoker -> GamePlay TexasHoldemPoker
-bet1 t = let 
-		b:bs = t^.bots
-		bs2 = rround 22 bs 
-	in  
-	return $ (t&bots .~ b:bs2)  
-
 round_ :: TexasHoldemPoker -> GamePlay TexasHoldemPoker
-round_ t = smallBlindBet t >>= bigBlindBet >>= normalRound
+round_ t = smallBlindBet t >>= bigBlindBet >>= betRound -- >>= normalRound
 
 helper :: Money -> Money -> Money -> CompleteBot -> CompleteBot
 helper callOrRaise currentInv money b = 
@@ -108,19 +80,36 @@ updateBotState a b =
 		call = callneeded b
 		inv = invested b	
 
-bettingRound :: TexasHoldemPoker -> GamePlay TexasHoldemPoker
-bettingRound t = undefined
+betRound :: TexasHoldemPoker -> GamePlay TexasHoldemPoker
+betRound t = do 
+	newT <- betRound  	
+	if not . everyoneAllInOrFolded $ newT^.bots then
+		normalRound newT
+	else
+		return newT	
+	 where
+	 	betRound = iterateUntilM (\thp -> hasBet oldBots (updatedBot thp) || (everyoneAllInOrFolded $ thp^.bots)) playBetsOnOneBot t
+	 	oldBots = t^.bots
+	 	updatedBot thp = last $ thp^.bots
+	 	hasBet bz b = (invested b) > (invested $ filterBotInList b bz)
+	 	
+playBetsOnOneBot :: TexasHoldemPoker -> GamePlay TexasHoldemPoker
+playBetsOnOneBot t =  
+	liftIO playBot >>= return 
+	where
+		playBot = return firstBot >>= playRoundStartBot2 >>= (evalRoundStart firstBot) >>= updateBot
+		updateBot bot = return (t&bots .~ ((tail $ t^.bots) ++ [bot]))
+		firstBot = head $ t^.bots
 
 
-betting :: [CompleteBot] -> [CompleteBot] -> IO [CompleteBot]	
-betting (b:bs) playedBots = (playRoundStartBot b) >>= (evalRoundStart b) >>= (\bot -> betting bs (bot : playedBots))
-betting [] playedBots = return playedBots
+playRoundStartBot2 :: CompleteBot -> IO RoundStartAction
+playRoundStartBot2 b = 
+	if notPlaying b then return Check else (playRoundStartBot b) 
 
 evalRoundStart :: CompleteBot -> RoundStartAction -> IO CompleteBot
 evalRoundStart b Fold_ = return $ updateBotState Fold b
 evalRoundStart b Check = return b
 evalRoundStart b (Bet m) = return $ (updateBotState (Raise m) b) -- Raise also take inv - WRONG
-
 
 normalRound :: TexasHoldemPoker -> GamePlay TexasHoldemPoker
 normalRound t = iterateUntilM (\thp -> finishedBetting $ thp^.bots) normalRound2 t
@@ -162,12 +151,17 @@ firstBot b = do
 		 else
 		 	return [setFolded newBot]
 
-finishedBetting :: [CompleteBot] -> Bool
-finishedBetting bs = everyoneAllIn || everyoneFolded || everyoneBetTheSame   
+everyoneAllInOrFolded :: [CompleteBot] -> Bool
+everyoneAllInOrFolded bs = everyoneAllIn || everyoneFolded    
 	where 
-		maxBet = maximum $ map invested playingBots 
 		everyoneAllIn = all isAllIn playingBots
 		everyoneFolded = null playingBots
+		playingBots = filter (not . hasFolded) bs
+
+finishedBetting :: [CompleteBot] -> Bool
+finishedBetting bs = (everyoneAllInOrFolded bs) || everyoneBetTheSame   
+	where 
+		maxBet = maximum $ map invested playingBots 
 		everyoneBetTheSame = all (\b -> maxBet == invested b || (maxBet > invested b && isAllIn b)) playingBots  
 		playingBots = filter (not . hasFolded) bs
 
@@ -231,6 +225,10 @@ splitPots3 pots bs = splitPots3 updatePot otherBots
 
 isBotInList :: CompleteBot -> [CompleteBot] -> Bool
 isBotInList (p,s) list = any (\(p1,_) -> p1^.name == p^.name ) list
+
+filterBotInList :: CompleteBot -> [CompleteBot] -> CompleteBot
+filterBotInList (p,s) list = head $ filter (\(p1,_) -> p1^.name == p^.name ) list
+
 
 collectBots :: [CompleteBot] -> [Pot2] -> [CompleteBot]
 collectBots foldedBots pots = foldl (\list (_, bot@(p,s)) -> if isBotInList bot list then list else (p,s&investedInPot .~ 0) : list) foldedBots $ concat pots

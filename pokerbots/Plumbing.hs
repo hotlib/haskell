@@ -45,3 +45,21 @@ simpleBot b = BotSimple { _money = (moneyleft b), _botName = (botName_ b), _stat
 	where
 		botState_ = ((^.botStatus) . fst)
 		botName_ = ((^.name) . fst)
+
+bblind :: Money
+bblind = 10
+
+sblind :: Money
+sblind = 5
+
+pokerBot :: String -> PokerAction RoundStartAction -> PokerAction PlayAction -> PokerBot
+pokerBot n r p = PokerBot { _name = n, _startAction = r, _playAction = p, _botStatus = Playing, _currentCall = 0}
+
+folderBot :: String -> PokerBot
+folderBot name = pokerBot name (return Fold_) (return Fold)
+
+callBot :: String -> PokerBot
+callBot name = pokerBot name (return (Bet 20)) (return Call)
+
+raiseBot :: String -> PokerBot
+raiseBot name = pokerBot name (return Fold_) (return $ Raise 25)		

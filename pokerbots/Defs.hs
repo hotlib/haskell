@@ -6,7 +6,7 @@ import Control.Lens hiding (Fold, folded)
 
 data PlayAction = Fold | Call | Raise Money deriving (Eq, Show, Ord)
 data RoundStartAction = Check | Bet Money | Fold_ deriving (Eq, Show, Ord)
-data BotStatus = Playing | Folded | AllIn deriving (Eq, Show, Ord)
+data BotStatus = Playing | Folded | AllIn  deriving (Eq, Show, Ord)
 
 data Suit = Club | Diamond | Heart | Spade deriving (Eq, Show, Enum, Ord)
 data Value = Two | Three | Four | Five | Six | Seven | Eight | Nine | Ten | Jack | Queen | King | Ace  deriving (Eq, Show, Enum, Ord)
