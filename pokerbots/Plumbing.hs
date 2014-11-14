@@ -63,3 +63,13 @@ callBot name = pokerBot name (return (Bet 20)) (return Call)
 
 raiseBot :: String -> PokerBot
 raiseBot name = pokerBot name (return Fold_) (return $ Raise 25)		
+
+updateState f1 f2 = (moneyLeft %~ f1) . (investedInPot %~ f2)
+
+invest ::  Money -> BotState -> BotState
+invest m b = let 
+	decr = (subtract m) 
+	incr = (+ m)
+	update = updateState decr incr
+	in
+	b & update

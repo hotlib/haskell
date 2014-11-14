@@ -1,4 +1,3 @@
 module Main where
-import Evaluation
-import Pokerbot
+import TexasHoldemPoker
 main = defaultMain
