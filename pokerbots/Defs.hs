@@ -21,7 +21,6 @@ data HandEvaluation = HighCard [Value]
 					| FourOfAKind [Value]
 					| StraightFlush [Value] deriving (Eq, Show, Ord)
 
-
 data BotSimple = BotSimple {_money :: Int,  _botName :: String, _status :: BotStatus} deriving (Eq, Show, Ord)
 data PotSimple = PotSimple { _bet :: Int, _botss :: [BotSimple]} deriving (Eq, Show, Ord)
 
@@ -29,7 +28,6 @@ type Deck = [Card]
 type Hand = [Card]
 type CommunityCards = [Card]
 type Money = Int 
-
 
 type PokerAction a = ReaderT BotState IO a
 type GamePlay a = WriterT String IO a 
@@ -43,7 +41,7 @@ instance Show PokerBot where
   show b = "POKERBOT (status: " ++ (show $ _botStatus b) ++ ", call: " ++ (show $ _currentCall b)  ++ ") " ++ _name b
 
 instance Show BotState where
-  show b = "BOTSTATE investedInPot: " ++ (show $ _investedInPot b) ++ " _moneyLeft: " ++ (show $ _moneyLeft b) ++ " _callNeeded: " ++ (show $ _callNeeded b) -- ++ " _potTotal: " ++ (show $ _potTotal b)
+  show b = "BOTSTATE investedInPot: " ++ (show $ _investedInPot b) ++ " _moneyLeft: " ++ (show $ _moneyLeft b) ++ " _callNeeded: " ++ (show $ _callNeeded b) ++ " _communityCards: " ++ (show $ _communityCards b)
 
 type CompleteBot = (PokerBot, BotState)
 type Pot = (Money, [CompleteBot])

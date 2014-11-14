@@ -37,18 +37,17 @@ initGame_ bs = writer (TexasHoldemPoker { _bots = bz, _deck = drop cardDealtLeng
 		makeBots b c = (b, botState c)
 
 round_ :: TexasHoldemPoker -> GamePlay TexasHoldemPoker
-round_ t = smallBlindBet t >>= bigBlindBet >>= normalRound >>= betRound 
+round_ t = smallBlindBet t >>= bigBlindBet >>= normalRound >>= addCommunityCard >>= bettingRound 
 
-betRound :: TexasHoldemPoker -> GamePlay TexasHoldemPoker
-betRound t = do 
+bettingRound :: TexasHoldemPoker -> GamePlay TexasHoldemPoker
+bettingRound t = do 
 	newT <- betRound  	
 	if not . everyoneAllInOrFolded $ newT^.bots then
 		normalRound newT
 	else
 		return newT	
 	 where
-	 	betRound = iterateUntilM (\thp -> hasBet oldBots (updatedBot thp) || (everyoneAllInOrFolded $ thp^.bots)) playBetsOnOneBot t
-	 	oldBots = t^.bots
+	 	betRound = iterateUntilM (\thp -> hasBet (t^.bots) (updatedBot thp) || (oneOrNonePlaying $ thp^.bots)) playBetsOnOneBot t
 	 	updatedBot thp = last $ thp^.bots
 	 	hasBet bz b = (invested b) > (invested $ filterBotInList b bz)
 

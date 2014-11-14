@@ -87,12 +87,15 @@ firstBot b = do
 		 else
 		 	return [setFolded newBot]
 
+oneOrNonePlaying :: [CompleteBot] -> Bool
+oneOrNonePlaying bs = 2 > (length $ filter (\x -> not x) $ map notPlaying bs)
+
 everyoneAllInOrFolded :: [CompleteBot] -> Bool
 everyoneAllInOrFolded bs = everyoneAllIn || everyoneFolded    
 	where 
-		everyoneAllIn = all isAllIn playingBots
-		everyoneFolded = null playingBots
-		playingBots = filter (not . hasFolded) bs
+		everyoneAllIn = all isAllIn notFoldedBots
+		everyoneFolded = null notFoldedBots
+		notFoldedBots = filter (not . hasFolded) bs
 
 finishedBetting :: [CompleteBot] -> Bool
 finishedBetting bs = (everyoneAllInOrFolded bs) || everyoneBetTheSame   
