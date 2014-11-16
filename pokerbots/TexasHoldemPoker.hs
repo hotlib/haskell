@@ -10,6 +10,7 @@ import Control.Monad.Reader
 import Control.Monad.Writer
 import Data.List.Split
 import Control.Lens hiding (Fold, folded)
+-- import qualified Data.Map.Strict as Map
 
 smallBlindBet :: TexasHoldemPoker -> GamePlay TexasHoldemPoker
 smallBlindBet t = return $ t&bots %~ \(b:bs) -> bs ++ [(fst b, invest sblind $ snd b)]
@@ -37,8 +38,23 @@ initGame_ bs = writer (TexasHoldemPoker { _bots = bz, _deck = drop cardDealtLeng
 		makeBots b c = (b, botState c)
 
 round_ :: TexasHoldemPoker -> GamePlay TexasHoldemPoker
-round_ t = smallBlindBet t >>= bigBlindBet >>= normalRound >>= addCommunityCard >>= bettingRound 
+round_ t = smallBlindBet t >>= bigBlindBet >>= normalRound >>= step >>= step >>= step
+	where 
+		step = \t -> addCommunityCard t >>= bettingRound 
+		
 
+--evalBotHands :: [CompleteBot] -> Map.Map String HandEvaluation
+--evalBotHands bs = foldl addtoMap Map.empty bs
+--	where 
+--		addtoMap m (p,s) = Map.insert (p^.name) (evalHand $ cards s) m
+--		cards s = (s^.communityCards) ++ (s^.hole) 
+
+pickWinner :: TexasHoldemPoker -> IO ()
+pickWinner t = 
+	print $ map (winnerList $ t^.bots) aPot 
+	where
+		aPot = _potTotal . snd . head $ t^.bots
+	
 bettingRound :: TexasHoldemPoker -> GamePlay TexasHoldemPoker
 bettingRound t = do 
 	newT <- betRound  	
@@ -91,8 +107,10 @@ runGame = runWriterT $ initGame dummyBots2 >>= playGame
 
 defaultMain = do
 	x <- runGame :: IO (TexasHoldemPoker, String)
-	putStrLn $ snd x
-	print $ fst x
+	-- putStrLn $ snd x
+	-- print $ fst x
+	print "------------------------------"
+	pickWinner $ fst x
 	
 	-- x <- playBot folderBot (botState [])
 	-- print x

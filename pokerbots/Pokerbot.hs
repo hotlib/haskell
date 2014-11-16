@@ -5,6 +5,7 @@ import Control.Monad.Reader
 import Control.Monad.Writer
 import Control.Lens hiding (Fold, folded)
 import Data.List.Split
+import Data.List
 import Control.Monad.Trans.Cont
 import Data.Maybe 
 import Defs
@@ -20,9 +21,6 @@ playRoundStartBot :: CompleteBot -> IO RoundStartAction
 playRoundStartBot (b, s) = runReaderT action s
 	where
 		action = b^.startAction 
-
-evalHand :: BotState -> [HandEvaluation]
-evalHand = undefined
 
 playBotExample :: PokerAction PlayAction
 playBotExample = do
@@ -150,9 +148,25 @@ isBotInList (p,s) list = any (\(p1,_) -> p1^.name == p^.name ) list
 filterBotInList :: CompleteBot -> [CompleteBot] -> CompleteBot
 filterBotInList (p,s) list = head $ filter (\(p1,_) -> p1^.name == p^.name ) list
 
+filterBotWithName :: String -> [CompleteBot] -> CompleteBot
+filterBotWithName botName list = head $ filter (\(p,_) -> (p^.name) == botName ) list
+
+
 collectBots :: [CompleteBot] -> [Pot2] -> [CompleteBot]
 collectBots foldedBots pots = foldl (\list (_, bot@(p,s)) -> if isBotInList bot list then list else (p,s&investedInPot .~ 0) : list) foldedBots $ concat pots
-   
+  
+potBotLookUp :: [CompleteBot] -> PotSimple -> [CompleteBot] 
+potBotLookUp bs p = foldl addBot [] $ p^.botss
+	where addBot list sb = let b = filterBotWithName (sb^.botName) bs in b : list 
+
+winnerList ::  [CompleteBot] -> PotSimple -> (Money, [(HandEvaluation, String)])
+winnerList bs p = ( p^.bet, pickWinners)
+	where
+		pickWinners = takeWhile (\x -> x == head tuplesEvaluationAndBotname) $ reverse . sort $ tuplesEvaluationAndBotname
+		tuplesEvaluationAndBotname = map evalBot $ potBotLookUp bs p
+		evalBot (p,s) = (evalHand $ cards s, p^.name)
+		cards s = (s^.communityCards) ++ (s^.hole) 
+		
 dummyBots = [(folderBot "x", (botState [])&investedInPot .~ 23), 
 	(folderBot "xx", (botState [])&investedInPot .~ 11), 
 	(folderBot "xxx", (botState [])&investedInPot .~ 222),

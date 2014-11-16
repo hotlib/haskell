@@ -93,3 +93,6 @@ evaluateHand h = do
 	eval twoPairs h
 	eval onePair h
 	eval highCard h
+
+evalHand :: Hand -> HandEvaluation
+evalHand h = fromJust $ runCont (evaluateHand h) id 
