@@ -155,17 +155,32 @@ filterBotWithName botName list = head $ filter (\(p,_) -> (p^.name) == botName )
 collectBots :: [CompleteBot] -> [Pot2] -> [CompleteBot]
 collectBots foldedBots pots = foldl (\list (_, bot@(p,s)) -> if isBotInList bot list then list else (p,s&investedInPot .~ 0) : list) foldedBots $ concat pots
   
-potBotLookUp :: [CompleteBot] -> PotSimple -> [CompleteBot] 
-potBotLookUp bs p = foldl addBot [] $ p^.botss
+-- substite simplebot for completebot in potsimple  
+completebotsFromPot :: [CompleteBot] -> PotSimple -> [CompleteBot] 
+completebotsFromPot bs p = foldl addBot [] $ p^.botss
 	where addBot list sb = let b = filterBotWithName (sb^.botName) bs in b : list 
 
-winnerList ::  [CompleteBot] -> PotSimple -> (Money, [(HandEvaluation, String)])
+winnersAddMoney :: [CompleteBot] -> [(Money, [(HandEvaluation, CompleteBot)])] -> [CompleteBot]
+winnersAddMoney bs [] = bs
+winnersAddMoney bs (p:ps) 
+	| null $ snd p = winnersAddMoney bs ps 
+	| otherwise = winnersAddMoney (rewardedBots ++ bs) ps
+		where 
+			rewardedBots = map (addMoney . snd) $  snd p
+			addMoney b@(p_,s_) = (p_, s_&moneyLeft %~ (+ win))
+			win = quot (fst p) $ length . snd $ p
+
+winnerList ::  [CompleteBot] -> PotSimple -> (Money, [(HandEvaluation, CompleteBot)])
 winnerList bs p = ( p^.bet, pickWinners)
 	where
-		pickWinners = takeWhile (\x -> x == head tuplesEvaluationAndBotname) $ reverse . sort $ tuplesEvaluationAndBotname
-		tuplesEvaluationAndBotname = map evalBot $ potBotLookUp bs p
-		evalBot (p,s) = (evalHand $ cards s, p^.name)
-		cards s = (s^.communityCards) ++ (s^.hole) 
+		pickWinners = takeWhile (\x -> (fst x) == (fst . head $ evalAndBotTuples)) $ reverse . sort $ evalAndBotTuples
+		evalAndBotTuples = map evalBot $ completebotsFromPot bs p
+		
+evalBot :: CompleteBot -> (HandEvaluation, CompleteBot)
+evalBot b@(p,s) = (bestCombination, b)
+	where
+		bestCombination =  head . reverse . sort $ map evalHand $ cards s
+		cards s = cardCombinations 5 $ (s^.communityCards) ++ (s^.hole) 
 		
 dummyBots = [(folderBot "x", (botState [])&investedInPot .~ 23), 
 	(folderBot "xx", (botState [])&investedInPot .~ 11), 
