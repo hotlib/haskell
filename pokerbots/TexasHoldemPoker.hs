@@ -38,7 +38,7 @@ initGame_ bs = writer (TexasHoldemPoker { _bots = bz, _deck = drop cardDealtLeng
 		makeBots b c = (b, botState c)
 
 round_ :: TexasHoldemPoker -> GamePlay TexasHoldemPoker
-round_ t = smallBlindBet t >>= bigBlindBet >>= normalRound >>= step >>= step >>= step
+round_ t = smallBlindBet t >>= bigBlindBet >>= normalRound >>= step >>= step >>= step >>= evalWinners
 	where 
 		step = \t -> addCommunityCard t >>= bettingRound 
 		
@@ -48,6 +48,17 @@ round_ t = smallBlindBet t >>= bigBlindBet >>= normalRound >>= step >>= step >>=
 --	where 
 --		addtoMap m (p,s) = Map.insert (p^.name) (evalHand $ cards s) m
 --		cards s = (s^.communityCards) ++ (s^.hole) 
+
+evalWinners :: TexasHoldemPoker -> GamePlay TexasHoldemPoker
+evalWinners t = do
+	liftIO $ print "XXXXXXXXXXXXXXXXX"
+	liftIO $ print $ winnerlist
+	return $ t&bots .~ (addMoney winnerlist)
+	where
+		winnerlist = map (winnerList $ t^.bots) aPot
+		addMoney = winnersAddMoney [] 
+		aPot = _potTotal . snd . head $ t^.bots
+	
 
 pickWinner :: TexasHoldemPoker -> IO ()
 pickWinner t = 
@@ -109,10 +120,9 @@ defaultMain = do
 	x <- runGame :: IO (TexasHoldemPoker, String)
 	-- putStrLn $ snd x
 	-- print $ fst x
-	print "------------------------------"
-	pickWinner $ fst x
+	-- pickWinner $ fst x
 	
 	-- x <- playBot folderBot (botState [])
 	-- print x
 	-- print $ splitPots3 [] dummyBots
-	-- print "ok"
+	print "ok"
