@@ -2,3 +2,5 @@
 /favicon.ico FaviconR GET
 /robots.txt RobotsR GET
 / HomeR GET
+/survey SurveyR GET
+/survey/new CreateSurveyR POST
