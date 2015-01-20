@@ -1,0 +1,3 @@
+Number of users:
+<input type="text" name="usercount">
+<textarea rows="45" cols="50">

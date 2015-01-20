@@ -23,6 +23,7 @@ import System.Log.FastLogger                (defaultBufSize, newStdoutLoggerSet,
 import Handler.Common
 import Handler.Home
 import Handler.Survey
+import Handler.Users
 
 mkYesodDispatch "App" resourcesApp
 

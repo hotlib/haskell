@@ -4,3 +4,4 @@
 / HomeR GET
 /survey SurveyR GET
 /survey/new CreateSurveyR POST
+/users UsersR GET
