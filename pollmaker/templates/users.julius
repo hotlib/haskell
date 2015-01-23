@@ -1,9 +1,25 @@
+
+//$('#codenum').blur(function(){
+//    validator.validate()
+//});
+
+
+
 function accessCode(){
     var d = new Date().getTime();
     var uuid = 'xxxxxxxx'.replace(/[x]/g, function(c) {
         var r = (d + Math.random()*16)%16 | 0;
         d = Math.floor(d/16);
-        return (c=='x' ? r : (r&0x3|0x8)).toString(16);
+        return (c=='x' ? r: (r&0x3|0x8)).toString(16);
     });
     return uuid;
 };
+
+$( "#addcodes" ).click(function() { 
+    var fin = accessCode(); 
+    for(i=1; i < $('#codenum').val(); i++)
+       fin = fin.concat('\n').concat( accessCode());
+
+    $('textarea#codes2').val(fin);
+});
+

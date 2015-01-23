@@ -1,3 +1,5 @@
-Number of users:
-<input type="text" name="usercount">
-<textarea rows="45" cols="50">
+
+<form>
+<input id="codenum" type="text" name="usercount">
+    <textarea id="codes2" type="text" rows="5" cols="15">
+    <input id="addcodes" type="button" value="create">
