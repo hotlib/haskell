@@ -1,5 +1,4 @@
-
-<form>
-<input id="codenum" type="text" name="usercount">
-    <textarea id="codes2" type="text" rows="5" cols="15">
-    <input id="addcodes" type="button" value="create">
+<form method="POST" id="myform">
+ <input id="codenum" name="codenum">
+ <textarea name="thecodes" id="thecodes" type="text" rows="5" cols="15">
+ <input id="addcodes" type="submit" value="create">

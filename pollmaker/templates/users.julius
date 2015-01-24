@@ -1,9 +1,24 @@
-
-//$('#codenum').blur(function(){
-//    validator.validate()
+//jQuery.validator.setDefaults({
+//  debug: true,
+//  success: "valid"
 //});
 
-
+$("#myform").validate({
+  rules: {
+    codenum: {
+      required: true,
+      digits: true,
+      range : [1, 10000]
+    }
+  },
+  messages: {
+     codenum: {
+         required: "somecodes required",
+         range: "between 1 and 10000",
+         digits: "only theeee digits plz"
+     },  
+  }
+});
 
 function accessCode(){
     var d = new Date().getTime();
@@ -19,7 +34,7 @@ $( "#addcodes" ).click(function() {
     var fin = accessCode(); 
     for(i=1; i < $('#codenum').val(); i++)
        fin = fin.concat('\n').concat( accessCode());
-
-    $('textarea#codes2').val(fin);
+    if( $("#myform").valid() )
+        $('textarea#thecodes').val(fin);
 });
 

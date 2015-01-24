@@ -1,8 +1,7 @@
 module Handler.Survey where
 
 import Import
-import System.IO
-import Prelude (read)
+import Util.Util
 
 data Survey = Survey {name :: String, questions :: [Question]} deriving (Show, Read)  
 type Question = Text 
@@ -13,23 +12,20 @@ instance ToJSON Survey where
           "questions" .= questions 
         ]
 
-getData :: IO Survey
-getData = do
-  outh <- openFile "data.txt" ReadMode
-  s <- (read <$> System.IO.hGetContents outh )
-  s `seq` hClose outh
-  return s
+dataFile :: String
+dataFile = "data.txt"
 
-saveData :: Survey -> IO ()
-saveData s =  do 
-  outh <- openFile "data.txt" WriteMode
-  hPrint outh s
-  hClose outh 
+getD :: IO Survey
+getD = do
+        s <- getData dataFile 
+        case s of
+            Just x -> return x
+	    Nothing -> return $ Survey {name = "empty survey", questions = [] }
 
 getSurveyR :: Handler Html
 getSurveyR = do
   defaultLayout $ do
-    s <- liftIO getData
+    s <- liftIO getD -- $ getData dataFile 
     setTitle "Survey"
     $(widgetFile "survey")
 
@@ -38,5 +34,5 @@ postCreateSurveyR = do
   (postData, _) <- runRequestBody
   let qs = map snd postData
   let s = Survey { name = "test survey", questions = qs }
-  liftIO $ saveData s
+  liftIO $ saveData s dataFile
   defaultLayout [whamlet|<p>#{show s}|]
