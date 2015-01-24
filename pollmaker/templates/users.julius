@@ -1,9 +1,25 @@
-//jQuery.validator.setDefaults({
-//  debug: true,
-//  success: "valid"
-//});
 
-$("#myform").validate({
+var codes = #{toJSON r}
+
+$(document).ready(function() {
+    $.each(codes, function(i,v) {
+    	addCode(v);
+    });
+});
+
+
+var addCode = function(c) {
+   var textArea = $('textarea#thecodes');
+   var codesPresent = $.trim(textArea.val());
+
+   if(codesPresent.length != 0) 
+       c = codesPresent.concat('\n').concat( c );
+
+   textArea.val(c);
+}
+
+
+$('#myform').validate({
   rules: {
     codenum: {
       required: true,
@@ -32,9 +48,7 @@ function accessCode(){
 
 $( "#addcodes" ).click(function() { 
     var fin = accessCode(); 
-    for(i=1; i < $('#codenum').val(); i++)
-       fin = fin.concat('\n').concat( accessCode());
-    if( $("#myform").valid() )
-        $('textarea#thecodes').val(fin);
+    for(i=1; i < $('#codenum').val() && $("#myform").valid(); i++)
+       addCode(accessCode());
 });
 

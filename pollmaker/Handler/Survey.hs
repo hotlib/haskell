@@ -15,8 +15,8 @@ instance ToJSON Survey where
 dataFile :: String
 dataFile = "data.txt"
 
-getD :: IO Survey
-getD = do
+readSurvey :: IO Survey
+readSurvey = do
         s <- getData dataFile 
         case s of
             Just x -> return x
@@ -25,7 +25,7 @@ getD = do
 getSurveyR :: Handler Html
 getSurveyR = do
   defaultLayout $ do
-    s <- liftIO getD -- $ getData dataFile 
+    s <- liftIO readSurvey 
     setTitle "Survey"
     $(widgetFile "survey")
 
