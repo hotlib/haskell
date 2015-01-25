@@ -15,7 +15,6 @@ mkYesodData "App" $(parseRoutesFile "config/routes")
 type Form x = Html -> MForm (HandlerT App IO) (FormResult x, Widget)
 
 instance Yesod App where
-    makeSessionBackend _ = return Nothing
     approot = ApprootMaster $ appRoot . appSettings
     defaultLayout widget = do
         master <- getYesod

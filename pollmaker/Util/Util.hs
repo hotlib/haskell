@@ -4,7 +4,17 @@ import System.IO
 import Prelude (Maybe(..), Bool(..), Show, read, String, Read, seq, return)
 import Control.Applicative
 import System.Directory
+import Data.Text
 
+codesFile :: String
+codesFile = "codes.txt"
+
+readCodes :: IO [Text]
+readCodes = do
+        s <- getData codesFile
+        case s of
+            Just x -> return x
+            Nothing -> return []
 
 readData :: (Read a) => String -> IO a
 readData f = do 
