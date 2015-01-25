@@ -1,2 +1,3 @@
 <H1> Survey
-<form id="myform"myformmyform>
+<form id="myform" method="POST">
+   <input type="submit" value="Submit">
