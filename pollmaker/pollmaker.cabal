@@ -22,6 +22,7 @@ library
                      Handler.Home
                      Handler.Survey
                      Handler.Users
+                     Handler.Login
                      Util.Util 
 
     if flag(dev) || flag(library-only)

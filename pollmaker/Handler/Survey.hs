@@ -12,18 +12,6 @@ instance ToJSON Survey where
           "questions" .= questions 
         ]
 
-code :: (Monad m, RenderMessage (HandlerSite m) FormMessage) => FormInput m Text 
-code = ireq textField "usercode" 
-
-postSurveyR:: Handler Html
-postSurveyR = do
-        userCode <- runInputPost code
-        allCodes <- liftIO readCodes
-        case userCode `elem` allCodes of
-             True -> setMessage "OK" >> (setSession "logged" "survey")
-             False -> setMessage "Nope"
-        redirect SurveyR 
-
 dataFile :: String
 dataFile = "data.txt"
 
@@ -33,13 +21,6 @@ readSurvey = do
         case s of
             Just x -> return x
             Nothing -> return $ Survey {name = "empty survey", questions = [] }
-
-
-loginPage :: Handler Html
-loginPage = defaultLayout $ do 
-        setTitle "Please login"
-        $(widgetFile "login")
-
 
 surveyPage :: Handler Html
 surveyPage = defaultLayout $ do 
@@ -52,7 +33,7 @@ getSurveyR = do
   x <- lookupSession "logged"
   case x of 
        Just y -> surveyPage 
-       Nothing -> loginPage
+       Nothing -> redirect LoginR
 
 postCreateSurveyR :: Handler Html
 postCreateSurveyR = do
