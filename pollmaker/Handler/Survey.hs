@@ -22,17 +22,28 @@ readSurvey = do
             Just x -> return x
             Nothing -> return $ Survey {name = "empty survey", questions = [] }
 
-surveyPage :: Handler Html
-surveyPage = defaultLayout $ do 
+returnSurvey :: Text -> Handler Html
+returnSurvey user 
+    | user == "admin" = surveyPageEdit
+    | otherwise = surveyPageRead
+
+surveyPageEdit :: Handler Html
+surveyPageEdit = defaultLayout $ do 
        s <- liftIO readSurvey 
-       setTitle "Survey"
-       $(widgetFile "survey")
+       setTitle "Editing the Survey"
+       $(widgetFile "surveyEdit")
+
+surveyPageRead :: Handler Html
+surveyPageRead = defaultLayout $ do 
+       s <- liftIO readSurvey 
+       setTitle "Filling out the Survey"
+       $(widgetFile "surveyRead")
 
 getSurveyR :: Handler Html
 getSurveyR = do
-  x <- lookupSession "logged"
-  case x of 
-       Just y -> surveyPage 
+  v <- lookupSession "logged"
+  case v of 
+       Just u -> returnSurvey u
        Nothing -> redirect LoginR
 
 postCreateSurveyR :: Handler Html
