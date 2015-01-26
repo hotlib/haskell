@@ -5,6 +5,7 @@ import Prelude ((==), Maybe(..), Bool(..), Show, read, String, Read, seq, return
 import Control.Applicative
 import System.Directory
 import Data.Text
+import Import  
 
 codesFile :: String
 codesFile = "codes.txt"
@@ -33,13 +34,11 @@ getData f = do
        False -> return Nothing
        True -> Just <$> (readData f)
 
-
 appendData :: (Show a) => a -> String -> IO ()
 appendData s f =  do 
   outh <- openFile f AppendMode 
   hPrint outh s
   hClose outh 
-
 
 saveData :: (Show a) => a -> String -> IO ()
 saveData s f =  do 
@@ -47,14 +46,21 @@ saveData s f =  do
   hPrint outh s
   hClose outh 
 
-readAdminPasswd :: IO Text 
-readAdminPasswd = readData adminFile
+readAdminPassword :: IO Text 
+readAdminPassword = readData adminFile
 
-writeAdminPasswd :: Text -> IO ()
-writeAdminPasswd p = saveData p adminFile 
+writeAdminPassword :: Text -> IO ()
+writeAdminPassword p = saveData p adminFile 
 
 isAdmin :: Text -> IO Bool
-isAdmin p = (p == ) <$> readAdminPasswd
+isAdmin p = (p == ) <$> readAdminPassword
 
-
-
+authCode :: Handler Html -> Handler Html -> Handler Html
+authCode userPage adminPage = do
+  x <- lookupSession "logged"
+  case x of 
+       Just y -> (liftIO $ isAdmin y) >>= \t -> if t then adminPage else userPage 
+       Nothing -> redirect LoginR
+ 
+setSessionCode :: MonadHandler m => Text -> m ()
+setSessionCode c = setSession "logged" c

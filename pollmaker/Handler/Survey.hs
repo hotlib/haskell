@@ -46,11 +46,7 @@ surveyPageRead = defaultLayout $ do
        $(widgetFile "surveyRead")
 
 getSurveyR :: Handler Html
-getSurveyR = do
-  v <- lookupSession "logged"
-  case v of 
-       Just u -> returnSurvey u
-       Nothing -> redirect LoginR
+getSurveyR = authCode surveyPageRead surveyPageEdit
 
 postCreateSurveyR :: Handler Html
 postCreateSurveyR = do

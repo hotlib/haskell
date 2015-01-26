@@ -10,10 +10,11 @@ postLoginR:: Handler Html
 postLoginR = do
         userCode <- runInputPost code
         allCodes <- liftIO readCodes
-        case userCode `elem` allCodes of
-             True -> setMessage "OK" >> (setSession "logged" userCode)
+        admin <- liftIO $ isAdmin userCode
+        case userCode `elem` allCodes || admin of
+             True -> setMessage "OK" >> (setSessionCode userCode)
              False -> setMessage "Nope"
-        redirect HomeR 
+        redirect HomeR
 
 getLoginR :: Handler Html
 getLoginR = loginPage

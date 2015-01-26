@@ -1,17 +1,13 @@
 module Handler.Home where
 
 import Import
+import Util.Util
 
 loadHomepage :: Handler Html
 loadHomepage = defaultLayout $ do 
     aDomId <- newIdent
-    setTitle "Editing the Survey"
+    setTitle "homepage"
     $(widgetFile "homepage")
 
-
 getHomeR :: Handler Html
-getHomeR = do
-  x <- lookupSession "logged"
-  case x of 
-       Just y -> loadHomepage
-       Nothing -> redirect LoginR
+getHomeR = authCode (redirect SurveyR) loadHomepage
