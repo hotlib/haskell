@@ -21,8 +21,8 @@ readCodes = do
             Nothing -> return []
 
 
-readData :: (Read a) => String -> IO a
-readData f = Prelude.head <$> readLines f
+readLine :: (Read a) => String -> IO a
+readLine f = Prelude.head <$> readLines f
 
 readLines :: (Read a) => String -> IO [a]
 readLines f = do
@@ -37,7 +37,7 @@ getData f = do
   exists <- doesFileExist f
   case exists of 
        False -> return Nothing
-       True -> Just <$> (readData f)
+       True -> Just <$> (readLine f)
 
 appendData :: (Show a) => a -> String -> IO ()
 appendData s f =  do 
@@ -52,7 +52,7 @@ saveData s f =  do
   hClose outh 
 
 readAdminPassword :: IO Text 
-readAdminPassword = readData adminFile
+readAdminPassword = readLine adminFile
 
 writeAdminPassword :: Text -> IO ()
 writeAdminPassword p = saveData p adminFile 
