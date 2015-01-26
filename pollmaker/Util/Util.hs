@@ -1,11 +1,11 @@
 module Util.Util where
 
 import System.IO
-import Prelude ((==), Maybe(..), Bool(..), Show, read, String, Read, seq, return)
+import Prelude (head, (==), Maybe(..), Bool(..), Show, read, String, Read, seq, return)
 import Control.Applicative
 import System.Directory
-import Data.Text
-import Import  
+import Data.Text hiding (map, lines)
+import Import 
 
 codesFile :: String
 codesFile = "codes.txt"
@@ -20,12 +20,17 @@ readCodes = do
             Just x -> return x
             Nothing -> return []
 
+
 readData :: (Read a) => String -> IO a
-readData f = do 
+readData f = Prelude.head <$> readLines f
+
+readLines :: (Read a) => String -> IO [a]
+readLines f = do
   outh <- openFile f ReadMode
-  s <- (read <$> System.IO.hGetContents outh )
-  s `seq` hClose outh
-  return s
+  s <- System.IO.hGetContents outh
+  let result = map read $ lines s
+  result `seq` hClose outh
+  return result
 
 getData :: (Read a, Show a) =>  String -> IO (Maybe a)
 getData f = do

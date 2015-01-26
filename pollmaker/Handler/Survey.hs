@@ -9,6 +9,13 @@ type Answer = Text
 
 newtype SurveyAnswers = SurveyAnswers { answers:: [Answer] } deriving (Show, Read)  
 
+
+instance ToJSON SurveyAnswers where
+    toJSON SurveyAnswers{..} = object
+        [ "answers" .= answers
+        ]
+
+
 instance ToJSON Survey where
     toJSON Survey{..} = object
         [ "name" .= name,
