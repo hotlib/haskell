@@ -60,14 +60,20 @@ postCreateSurveyR = do
   liftIO $ saveData s dataFile
   defaultLayout [whamlet|<p>#{show s}|]
 
+removeCode :: Text -> [Text] -> IO ()
+removeCode toBeRemoved codes =  saveData (filter (toBeRemoved /= ) codes) codesFile
+
 
 postSurveyR :: Handler Html
 postSurveyR = do
+  Just u <- lookupSession "logged"
+  deleteSession "logged"
   (postData, _) <- runRequestBody
   let qs = map snd postData
       a = SurveyAnswers { answers = qs }
   liftIO $ appendData a answersFile
+  liftIO $ readCodes >>= removeCode u
   defaultLayout [whamlet|<p>#{show "thank you"}|]
-
+	 
 
 
