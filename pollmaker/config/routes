@@ -7,3 +7,4 @@
 /users UsersR GET POST
 /login LoginR GET POST
 /settings SettingsR GET POST
+/results ResultsR GET 

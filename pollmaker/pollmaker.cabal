@@ -25,7 +25,7 @@ library
                      Handler.Login
                      Handler.Settings
                      Util.Util 
-                     
+                     Handler.Results 
 
     if flag(dev) || flag(library-only)
         cpp-options:   -DDEVELOPMENT

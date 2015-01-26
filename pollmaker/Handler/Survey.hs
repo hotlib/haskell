@@ -69,7 +69,5 @@ postSurveyR = do
       a = SurveyAnswers { answers = qs }
   liftIO $ appendData a answersFile
   liftIO $ readCodes >>= removeCode u
-  defaultLayout [whamlet|<p>#{show "thank you"}|]
-	 
-
+  redirect ResultsR
 
