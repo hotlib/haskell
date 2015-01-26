@@ -2,7 +2,7 @@
 /static StaticR Static appStatic
 /favicon.ico FaviconR GET
 /robots.txt RobotsR GET
-/survey SurveyR GET
+/survey SurveyR GET POST
 /survey/new CreateSurveyR POST
 /users UsersR GET POST
 /login LoginR GET POST

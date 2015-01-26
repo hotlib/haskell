@@ -31,6 +31,12 @@ getData f = do
        True -> Just <$> (readData f)
 
 
+appendData :: (Show a) => a -> String -> IO ()
+appendData s f =  do 
+  outh <- openFile f AppendMode 
+  hPrint outh s
+  hClose outh 
+
 
 saveData :: (Show a) => a -> String -> IO ()
 saveData s f =  do 

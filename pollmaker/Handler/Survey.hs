@@ -5,6 +5,9 @@ import Util.Util
 
 data Survey = Survey {name :: String, questions :: [Question]} deriving (Show, Read)  
 type Question = Text 
+type Answer = Text
+
+newtype SurveyAnswers = SurveyAnswers { answers:: [Answer] } deriving (Show, Read)  
 
 instance ToJSON Survey where
     toJSON Survey{..} = object
@@ -14,6 +17,9 @@ instance ToJSON Survey where
 
 dataFile :: String
 dataFile = "data.txt"
+
+answersFile :: String
+answersFile = "answers.txt"
 
 readSurvey :: IO Survey
 readSurvey = do
@@ -53,3 +59,15 @@ postCreateSurveyR = do
       s = Survey { name = "test survey", questions = qs }
   liftIO $ saveData s dataFile
   defaultLayout [whamlet|<p>#{show s}|]
+
+
+postSurveyR :: Handler Html
+postSurveyR = do
+  (postData, _) <- runRequestBody
+  let qs = map snd postData
+      a = SurveyAnswers { answers = qs }
+  liftIO $ appendData a answersFile
+  defaultLayout [whamlet|<p>#{show "thank you"}|]
+
+
+
