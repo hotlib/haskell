@@ -1,3 +1,5 @@
-<h2>
-    This is a test.
-
+<h2>the homepage
+<a href=@{SurveyR}>Survey
+<a href=@{UsersR}>Users
+<a href=@{SettingsR}>Settings
+    

@@ -6,3 +6,4 @@
 /survey/new CreateSurveyR POST
 /users UsersR GET POST
 /login LoginR GET POST
+/settings SettingsR GET POST

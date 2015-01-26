@@ -1,13 +1,16 @@
 module Util.Util where
 
 import System.IO
-import Prelude (Maybe(..), Bool(..), Show, read, String, Read, seq, return)
+import Prelude ((==), Maybe(..), Bool(..), Show, read, String, Read, seq, return)
 import Control.Applicative
 import System.Directory
 import Data.Text
 
 codesFile :: String
 codesFile = "codes.txt"
+
+adminFile :: String
+adminFile = "admin.txt"
 
 readCodes :: IO [Text]
 readCodes = do
@@ -43,4 +46,15 @@ saveData s f =  do
   outh <- openFile f WriteMode
   hPrint outh s
   hClose outh 
+
+readAdminPasswd :: IO Text 
+readAdminPasswd = readData adminFile
+
+writeAdminPasswd :: Text -> IO ()
+writeAdminPasswd p = saveData p adminFile 
+
+isAdmin :: Text -> IO Bool
+isAdmin p = (p == ) <$> readAdminPasswd
+
+
 

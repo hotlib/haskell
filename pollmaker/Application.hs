@@ -25,6 +25,7 @@ import Handler.Home
 import Handler.Survey
 import Handler.Users
 import Handler.Login
+import Handler.Settings
 
 mkYesodDispatch "App" resourcesApp
 
