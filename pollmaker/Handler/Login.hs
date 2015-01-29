@@ -25,3 +25,5 @@ loginPage = defaultLayout $ do
         setTitle "Please login"
         $(widgetFile "login")
 
+getLogoutR :: Handler Html
+getLogoutR = defaultLayout $ logout >> redirect HomeR

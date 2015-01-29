@@ -1,5 +1,7 @@
 <h1> Hello
 
+<a href=@{ResultsR}>Results
+
 <form method=POST>
     <input type="text" name="usercode">
     <input type="submit" value="Submit">

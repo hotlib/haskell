@@ -69,3 +69,7 @@ authCode userPage adminPage = do
  
 setSessionCode :: MonadHandler m => Text -> m ()
 setSessionCode c = setSession "logged" c
+
+logout :: MonadHandler m => m ()
+logout = deleteSession "logged" 
+

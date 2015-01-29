@@ -1,3 +1,6 @@
 <H1> Survey
+
+<a href=@{LogoutR}>Logout
+
 <form id="myform" method="POST">
    <input type="submit" value="Submit">
