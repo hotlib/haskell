@@ -18,7 +18,5 @@ postUsersR :: Handler Html
 postUsersR = do
         result <- (splitOn "\r\n" . unpack) <$> runInputPost codes
         liftIO $ saveData result codesFile
-        defaultLayout [whamlet|<p>#{show result}|]
-
-
+        redirect HomeR
 

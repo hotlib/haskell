@@ -21,6 +21,7 @@ var addCode = function(c) {
 
 $('#myform').validate({
   rules: {
+    onsubmit: false,
     codenum: {
       required: true,
       digits: true,
@@ -47,6 +48,9 @@ function accessCode(){
 };
 
 $( "#addcodes" ).click(function() { 
+    if( !$('#myform').valid() ){
+        return;
+    }
     var fin = accessCode(); 
     for(i=1; i < $('#codenum').val() && $("#myform").valid(); i++)
        addCode(accessCode());
