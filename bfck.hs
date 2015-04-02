@@ -20,6 +20,7 @@ data Tree = Op Token Tree
 	  | End
           deriving (Show, Eq) 
 
+
 main :: IO ()
 main = do
         let (Right x) = parse (many1 tokenizer) "" "+[-[+]-]++"
@@ -36,7 +37,7 @@ buildTree ts@(LeftBracket : _) = let (firstPart, restPart) = mySplit
 buildTree (x : rest) = Op x $ buildTree rest  
 
 matchIndices :: [Int] -> [Int] -> [(Int, Int)]
-matchIndices ls rs = foldl match [] rs 
+matchIndices ls = foldl match []  
     where
       match acc r = (leftBracketIndex acc r, r) : acc
       leftBracketIndex acc r = index r (map fst acc) 
@@ -46,9 +47,8 @@ matchIndices ls rs = foldl match [] rs
 bracketIndices :: [Token] -> [(Int,Int)]
 bracketIndices ts = matchIndices leftIndices rightIndices 
     where 
-      getIndices what = findIndices (== what) ts
-      leftIndices = getIndices LeftBracket
-      rightIndices = getIndices RightBracket
+      leftIndices =  elemIndices LeftBracket ts
+      rightIndices = elemIndices RightBracket ts
 
 
 recognise :: Char -> Maybe Token
@@ -64,9 +64,10 @@ recognise c
        | otherwise = error "unsupported character"
 
 satisfy2 :: (Stream s m Char) => (Char -> Maybe Token) -> ParsecT s u m Token
-satisfy2 f = tokenPrim (\c -> show [c])
-              (\pos c _cs -> updatePosChar pos c)
-	      f
+satisfy2 = tokenPrim 
+               (\c -> show [c])
+               (\pos c _cs -> updatePosChar pos c)
+	      
 
 tokenizer :: (Stream s m Char) => ParsecT s u m Token
 tokenizer = satisfy2 recognise
