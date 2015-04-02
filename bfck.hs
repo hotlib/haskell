@@ -1,4 +1,4 @@
-{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE RecordWildCards, FlexibleContexts #-}
 
 import Text.Parsec.Pos
 import Text.Parsec
@@ -20,6 +20,39 @@ data Tree = Op Token Tree
 	  | End
           deriving (Show, Eq) 
 
+data Memory = Memory { memRight :: [Int], memLeft :: [Int], current :: Int }
+
+newMem :: Memory
+newMem = let memRight = [0,0 ..] 
+	     memLeft = [0,0 ..] 
+             current = 0
+	  in Memory {..}
+
+memValue :: Memory -> Int
+memValue Memory{..} = current 
+
+moveLeft :: Memory -> Memory
+moveLeft Memory{..} = Memory (current : memRight) (tail memLeft) (head memLeft)   
+
+moveRight :: Memory -> Memory
+moveRight Memory{..} = Memory (tail memRight) (current : memLeft) (head memRight)   
+
+modifyMem :: Int -> Memory -> Memory
+modifyMem i Memory{..} = Memory memRight memLeft (current + i)
+
+incMem :: Memory -> Memory
+incMem m = modifyMem 1 m
+
+decMem :: Memory -> Memory
+decMem m = modifyMem (-1) m
+
+printMem :: Memory -> IO ()
+printMem Memory{..} = print current
+
+readMem :: Memory -> IO Memory
+readMem m = do 
+             print "pretend iam reading"
+	     return m 
 
 main :: IO ()
 main = do
