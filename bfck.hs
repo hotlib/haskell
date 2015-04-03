@@ -71,13 +71,14 @@ main = do
 
 buildTree :: [Token] -> Tree
 buildTree [] = End
-buildTree ts@(LeftBracket : _) = let (firstPart, restPart) = mySplit 
+buildTree ts@(LeftBracket : _) = let (firstPart, restPart) = loopSplit 
 					 in Loop (buildTree $ tailSafe firstPart) (buildTree $ tailSafe restPart)   
     where
-      mySplit = splitAt (snd bracketTuple) ts
+      loopSplit = splitAt (snd bracketTuple) ts -- the idea is to split at position 'X' in a sequence  '[......]X......'  
       bracketTuple = head . filter (\x -> fst x == 0) $ bracketIndices ts      
 buildTree (x : rest) = Op x $ buildTree rest  
 
+-- |This is really ugly, please skip this function
 matchIndices :: [Int] -> [Int] -> [(Int, Int)]
 matchIndices ls = foldl match []  
     where
@@ -85,6 +86,7 @@ matchIndices ls = foldl match []
       leftBracketIndex acc r = index r (map fst acc) 
       index r used = maximum $ filter (\x -> x < r && x `notElem` used) ls  
 
+-- |The idea is that for each bracket pair [ ] we get a tuple (i,j) where i is the index of [ and j is the index of ]
 bracketIndices :: [Token] -> [(Int,Int)]
 bracketIndices ts 
           | length leftIndices == length rightIndices = matchIndices leftIndices rightIndices
