@@ -4,6 +4,8 @@ import Text.Parsec.Pos
 import Text.Parsec
 import Data.List 
 import Safe
+import System.Environment
+import Control.Applicative
 
 data Token = LeftBracket
            | RightBracket 
@@ -41,10 +43,10 @@ modifyMem :: Int -> Memory -> Memory
 modifyMem i Memory{..} = Memory memRight memLeft (current + i)
 
 incMem :: Memory -> Memory
-incMem m = modifyMem 1 m
+incMem = modifyMem 1 
 
 decMem :: Memory -> Memory
-decMem m = modifyMem (-1) m
+decMem = modifyMem (-1) 
 
 printMem :: Memory -> IO ()
 printMem Memory{..} = print current
@@ -56,8 +58,10 @@ readMem m = do
 
 main :: IO ()
 main = do
-        let (Right x) = parse (many1 tokenizer) "" "+[-[+]-]++"
-	print $ buildTree x
+	bfckSource <- head <$> getArgs
+        let (Right x) = parse (many1 tokenizer) "" bfckSource
+        _ <- eval (buildTree x) newMem	
+        return ()
 
 buildTree :: [Token] -> Tree
 buildTree [] = End
@@ -78,8 +82,10 @@ matchIndices ls = foldl match []
   	      
 
 bracketIndices :: [Token] -> [(Int,Int)]
-bracketIndices ts = matchIndices leftIndices rightIndices 
-    where 
+bracketIndices ts 
+          | length leftIndices == length rightIndices = matchIndices leftIndices rightIndices
+	  | otherwise = error "mismatch in brackets [ ]" 
+   where 
       leftIndices =  elemIndices LeftBracket ts
       rightIndices = elemIndices RightBracket ts
 
@@ -105,6 +111,15 @@ satisfy2 = tokenPrim
 tokenizer :: (Stream s m Char) => ParsecT s u m Token
 tokenizer = satisfy2 recognise
 
--- eval :: String -> Token -> String
--- eval s End = s ++ " the end " 
--- eval s (Plus x) = eval (s ++ " a plus ") x
+
+eval :: Tree -> Memory -> IO Memory 
+eval End m = return m 
+eval (Op Plus x) m = eval x (incMem m) 
+eval (Op Minus x) m = eval x (decMem m) 
+eval (Op Print x) m = printMem m >> eval x m
+eval (Op Input x) m = readMem m >> eval x m 
+eval (Op LeftShift x) m = eval x (moveLeft m) 
+eval (Op RightShift x) m = eval x (moveRight m) 
+eval loop@(Loop l r) m = if memValue m == 0 then eval r m 
+                         else                   eval l m >>= eval loop
+eval _ _ = error "unsupported node in parsing tree"			 
