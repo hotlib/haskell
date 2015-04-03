@@ -1,12 +1,16 @@
+-- A simple interpreter of the Brainf*ck programming language
+
 {-# LANGUAGE RecordWildCards, FlexibleContexts #-}
 
 import Text.Parsec.Pos
 import Text.Parsec
-import Data.List 
+import Data.List
+import Data.Char
 import Safe
 import System.Environment
 import Control.Applicative
 
+-- |Tokens of the language represented as types
 data Token = LeftBracket
            | RightBracket 
            | Plus
@@ -17,11 +21,13 @@ data Token = LeftBracket
 	   | Input
 	   deriving (Show, Eq)
 
+-- |Parse tree types
 data Tree = Op Token Tree
           | Loop Tree Tree
 	  | End
           deriving (Show, Eq) 
 
+-- |Memory representing the current state during the computation 
 data Memory = Memory { memRight :: [Int], memLeft :: [Int], current :: Int }
 
 newMem :: Memory
@@ -49,12 +55,12 @@ decMem :: Memory -> Memory
 decMem = modifyMem (-1) 
 
 printMem :: Memory -> IO ()
-printMem Memory{..} = print current
+printMem Memory{..} = print . chr $ current
 
 readMem :: Memory -> IO Memory
-readMem m = do 
-             print "pretend iam reading"
-	     return m 
+readMem Memory{..} = do 
+	     c <- getChar
+	     return Memory { current = digitToInt c, .. } 
 
 main :: IO ()
 main = do
@@ -70,7 +76,6 @@ buildTree ts@(LeftBracket : _) = let (firstPart, restPart) = mySplit
     where
       mySplit = splitAt (snd bracketTuple) ts
       bracketTuple = head . filter (\x -> fst x == 0) $ bracketIndices ts      
-
 buildTree (x : rest) = Op x $ buildTree rest  
 
 matchIndices :: [Int] -> [Int] -> [(Int, Int)]
@@ -79,7 +84,6 @@ matchIndices ls = foldl match []
       match acc r = (leftBracketIndex acc r, r) : acc
       leftBracketIndex acc r = index r (map fst acc) 
       index r used = maximum $ filter (\x -> x < r && x `notElem` used) ls  
-  	      
 
 bracketIndices :: [Token] -> [(Int,Int)]
 bracketIndices ts 
@@ -89,35 +93,32 @@ bracketIndices ts
       leftIndices =  elemIndices LeftBracket ts
       rightIndices = elemIndices RightBracket ts
 
-
-recognise :: Char -> Maybe Token
+recognise :: Char -> Token
 recognise c 
-       | c == '+' = Just Plus
-       | c == '-' = Just Minus
-       | c == '<' = Just LeftShift
-       | c == '>' = Just RightShift
-       | c == '.' = Just Print
-       | c == ',' = Just Input
-       | c == '[' = Just LeftBracket
-       | c == ']' = Just RightBracket
+       | c == '+' = Plus
+       | c == '-' = Minus
+       | c == '<' = LeftShift
+       | c == '>' = RightShift
+       | c == '.' = Print
+       | c == ',' = Input
+       | c == '[' = LeftBracket
+       | c == ']' = RightBracket
        | otherwise = error "unsupported character"
 
-satisfy2 :: (Stream s m Char) => (Char -> Maybe Token) -> ParsecT s u m Token
-satisfy2 = tokenPrim 
+tokenSatisfy :: (Stream s m Char) => (Char -> Maybe Token) -> ParsecT s u m Token
+tokenSatisfy = tokenPrim 
                (\c -> show [c])
                (\pos c _cs -> updatePosChar pos c)
-	      
 
 tokenizer :: (Stream s m Char) => ParsecT s u m Token
-tokenizer = satisfy2 recognise
-
+tokenizer = tokenSatisfy $ Just . recognise
 
 eval :: Tree -> Memory -> IO Memory 
 eval End m = return m 
 eval (Op Plus x) m = eval x (incMem m) 
 eval (Op Minus x) m = eval x (decMem m) 
 eval (Op Print x) m = printMem m >> eval x m
-eval (Op Input x) m = readMem m >> eval x m 
+eval (Op Input x) m = readMem m >>= eval x  
 eval (Op LeftShift x) m = eval x (moveLeft m) 
 eval (Op RightShift x) m = eval x (moveRight m) 
 eval loop@(Loop l r) m = if memValue m == 0 then eval r m 
