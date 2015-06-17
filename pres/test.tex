@@ -141,12 +141,27 @@ filter g (x:xs)
 
 \begin{itemize}
 \item in this case f could have the form f x xs = IF condition THEN recursive\_op1 ELSE recursive\_op2 
-\item but we can extract the recursion and get 
+\end{itemize}
+
+\end{frame}
+
+
+
+
+
+
+
+\begin{frame}[fragile]
+\frametitle{Example of the Universal property}
+\begin{itemize}
+\item 'h (x:xs) = f x (h xs)'
+\item We can extract the recursion and get 
 \end{itemize}
 \begin{lstlisting}
 mfilter2 :: (a -> Bool) -> [a] -> [a]
 mfilter2 g  [] = [] // h[] = v
-mfilter2 g (x:xs) = f x (mfilter2 g xs) // h (x:xs) = f x (h xs)
+mfilter2 g (x:xs) = f x (mfilter2 g xs) // h (x:xs) = 
+                                        //    f x (h xs)
   where 
     f x xs = if g x then x : xs else xs 
 \end{lstlisting}
@@ -160,6 +175,19 @@ filter g = foldr (\x xs -> if g x then x : xs else xs) []
 \end{lstlisting}
 
 \end{frame}
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -584,7 +612,7 @@ print $ cata intAlg exampleTree //265
 \frametitle{Theoretic detour}
 
 \begin{block}{my pic}
-\includegraphics[width=0.34\textwidth]{graf3.png}	
+\includegraphics[width=0.2\textwidth]{graf3.png}	
 \end{block}
 \begin{itemize}
 \item Catamorphisms have the same laws as folds. As to avoid introducing new mathematical concepts I only mention the 
@@ -598,7 +626,7 @@ alg . (fmap w) = w . In
 \end{lstlisting}
 
 \begin{itemize}
-\item The fusion law states that the composition of a homomorphism between two algebras and a catamorphism can be rewritten as a catamorphism.
+	\item The fusion law states that the composition of a function and a catamorphism can be rewritten as a catamorphism (no need for intermediate data representations).
 \end{itemize}
 
 \begin{lstlisting}
@@ -606,9 +634,89 @@ h . w = w'
 \end{lstlisting}
 
 \begin{itemize}
-\item The banana split law says that two catamorphisms can be expressed as a single catamorphism 
+\item When we have 2 algebras in the same functor with a different carrier then using the Banana Split Law 2 catamorphisms can be expressed as a single catamorphism (single traversal of the datatype)
 \end{itemize}
 \end{frame}
+
+
+
+\begin{frame}[fragile]
+\frametitle{Theoretic detour}
+
+\begin{itemize}
+\item catamorphisms are part of the datatype generic approch to programming 
+\item generic functions can be used to write serialisers, evaluators, pretty-printers ... 
+\item The approach deals with datatypes with regular structure.
+\item Different methods have to be used to deal with non-regular datatypes (nested or mutually recursive datatypes) 	
+\item Example of a nested datatype:	
+\end{itemize}
+
+\begin{lstlisting}
+data Nest a = Nil | Cons (a, Nest (a, a))
+
+Cons 
+   (10,
+      Cons 
+        ((10,10),
+          Cons 
+             (((10,10),(10,10)),
+                  Nil)))
+\end{lstlisting}
+
+\end{frame}
+
+
+
+
+\begin{frame}[fragile]
+\frametitle{Related topics}
+
+\begin{itemize}
+\item Paramorphism is an extension of catamorphism
+\item Paramorphism operate on the results of the evaluation of substructures as well as on substructures themselves	
+\item Usefull when you need to further examine the data from which the result was computed	
+\item We could define a monadic catamorphism where the algebra is alg : f a $\rightarrow$ m a where m is a monad 
+\item The benefit is that the we can use monads in the algebra but don't have to specify the monads in the pattern functor
+\item We can use memoization in catamorphism (define a memoizing catamorphism) to speed up computations
+\end{itemize}
+
+\end{frame}
+
+
+
+
+\begin{frame}[fragile]
+\frametitle{References}
+
+\begin{itemize}
+\item A tutorial on the universality and expressiveness of fold, Graham Hutton, 1999
+\item Generic Storage in Haskell, Sebastiaan Visser, Andres Löh, 2010
+\item When is a function a fold or an unfold?, Jeremy Gibbons, Graham Hutton, Thorsten Altenkirch, 2001
+\item Understanding F-Algebras, blog post on www.fpcomplete.com, Bartosz Milewski, 2013
+\item Catamorphisms, blog post on www.fpcomplete.com, Edward Kmett, 2014
+\item Initial Algebra Semantics is Enough!, Patricia Johann, Neil Ghani, 2007
+\item Functional Programming with Bananas, Lenses, Envelopes and Barbed Wire, Erik Meijer Maarten Fokkinga, Ross Paterson, 1991
+\end{itemize}
+
+\end{frame}
+
+
+
+
+\begin{frame}[fragile]
+\frametitle{}
+
+\begin{itemize}
+\item Questions?
+\end{itemize}
+
+\begin{block}{Recursive giraffe, Farley Katz cartoon }
+\includegraphics[width=0.6\textwidth]{giraffe.jpg}	
+\end{block}
+\end{frame}
+
+
+
 
 
 
