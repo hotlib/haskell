@@ -26,8 +26,8 @@ backgroundcolor=\color{lightgrey},
 
 \begin{document}
 
-\title{fold and unfold}   
-\author{XXXX}  
+\title{An Introduction to fold}   
+\author{Pavel Paroulek}  
 \date{\today} 
 
 \frame{\titlepage} 
@@ -38,10 +38,10 @@ backgroundcolor=\color{lightgrey},
 \frame{\frametitle{About explicit recursion}
 \begin{itemize}
 \item Explicit recursion in FP is harder to read and reason about  
-\item Some consider it a goto statement in the FP world
+\item Some consider it a \textit{goto} statement in the FP world
 \item One can avoid it with more structured aproaches to recursion
 \item Usually higher order functions that 'abstract-away' recursion statements
-\item One can apply general properties of these funkctions to concrete cases
+\item Possibility to take advantage of laws and properties which these abstraction conform to
 \end{itemize}
 \begin{block}{xkcd 292 - goto}
 \includegraphics[width=\textwidth]{goto.png}
@@ -53,7 +53,7 @@ backgroundcolor=\color{lightgrey},
 \begin{frame}[fragile]
 \frametitle{Example of higher order function}
 \begin{itemize}
-\item Some useful functions in FP: map, filter, zipWith, \textbf{fold}, \textbf{unfold} ...
+\item Some useful functions in FP: map, filter, zipWith, \textbf{fold}, unfold ...
 \item zipWith $:: (a \rightarrow b \rightarrow c) \rightarrow [a] \rightarrow [b] \rightarrow [c]$
 \item Example - sum of elements at the same position in $[1,1,1]$ and $[1,2,3]$
 \item Result should be $[1+1, 1+2,1+3]$ (i.e. $[2,3,4]$) 
@@ -70,21 +70,21 @@ count (x:xs) (y:ys) = x + y + (count xs ys)
 \item We can use the function $zipWith$ 
 \end{itemize}
 \begin{lstlisting}
-let x = [1,1,1] 
-let y = [1,2,3] 
-count x y == [2,3,4] // True	
-zipWith (+) x y == count x y // True 	
+let l1 = [1,1,1] 
+let l2 = [1,2,3] 
+count l1 l2 == [2,3,4] // True	
+zipWith (+) l1 l2 == count l1 l2 // True 	
 
 \end{lstlisting}
 \end{frame}
 
 
 \begin{frame}[fragile]
-\frametitle{fold as a general function}
+\frametitle{fold as a powerful higher order function}
 \begin{itemize}
-\item fold is a structured way to go over lists  	
-\item fold (as a library function over lists) reduces/processes it's input list applying a given function
-\item fold has a signature $(a \rightarrow b \rightarrow a) \rightarrow  a \rightarrow  [b] -> a$ where the first argument is a
+\item \textit{fold} is a structured way to go over lists  	
+\item It reduces/processes the input list applying a given function
+\item The signature is $(a \rightarrow b \rightarrow a) \rightarrow  a \rightarrow  [b] -> a$ where the first argument is a
 	function, second argument is a initial value of the accumulator and the third value the list being processed
 \item Through fold one can define other higher order functions like length, map, filter, reverse, sum ...
 \end{itemize}
@@ -126,8 +126,8 @@ h = fold f v
 \begin{frame}[fragile]
 \frametitle{Example of the Universal property}
 \begin{itemize}
-\item There are certain properties, that have been derived for fold 
-\item The properties apply generally for folds on lists 
+\item Let's rewrite the filter function as a fold using the universal property
+\item Based on a given function filter removes certain elements from the input list 	
 \item 'h (x:xs) = f x (h xs)'
 \end{itemize}
 
@@ -150,7 +150,6 @@ filter g (x:xs)
 
 
 
-
 \begin{frame}[fragile]
 \frametitle{Example of the Universal property}
 \begin{itemize}
@@ -158,9 +157,9 @@ filter g (x:xs)
 \item We can extract the recursion and get 
 \end{itemize}
 \begin{lstlisting}
-mfilter2 :: (a -> Bool) -> [a] -> [a]
-mfilter2 g  [] = [] // h[] = v
-mfilter2 g (x:xs) = f x (mfilter2 g xs) // h (x:xs) = 
+filter :: (a -> Bool) -> [a] -> [a]
+filter g  [] = [] // h[] = v
+filter g (x:xs) = f x (filter g xs) // h (x:xs) = 
                                         //    f x (h xs)
   where 
     f x xs = if g x then x : xs else xs 
@@ -180,22 +179,10 @@ filter g = foldr (\x xs -> if g x then x : xs else xs) []
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
 \begin{frame}[fragile]
 \frametitle{The fusion law}
 \begin{itemize}
-\item the fusion law says under some conditions you can combine the composition of a function and fold into a single fold 
+\item The fusion law implies that under some conditions you can combine the composition of a function and fold into a single fold 
 \end{itemize}
 
 \begin{lstlisting}
@@ -204,7 +191,7 @@ h . fold g w = fold f v
 
 \begin{itemize}
 \item This holds only under some conditions, which can be derived from the universal property 
-\item a complete description can be found A tutorial on the universality and expressiveness of fold, Graham Hutton, 1999 
+\item A complete description of the fusion law can be found in [1] 
 \item Example - the composition of a fold and map can be reduced to a fold
 \end{itemize}
 \begin{lstlisting}
@@ -218,8 +205,8 @@ foldr f e . map g = foldr (f . g) e
 \begin{frame}[fragile]
 \frametitle{The banana-split law}
 \begin{itemize}
-\item the law implies that if you have 2 folds operating on the same argument, they can be merged into a single fold. 
-\item only a single traversal of the list is necessary (instead of 2) 
+\item This law states that that if you have 2 folds operating on the same argument, they can be merged into a single fold. 
+\item Only a single traversal of the list is necessary 
 \end{itemize}
 
 \begin{lstlisting}
@@ -230,7 +217,7 @@ h x (y, z) = (f x y, g x z)
 \end{lstlisting}
 
 \begin{itemize}
-\item Described in the article Functional Programming with Bananas, Lenses, Envelopes and Barbed Wire, Erik Meijer, Maarten Fokkinga, Ross Paterson, 1991
+	\item Described in the article Functional Programming with Bananas, Lenses, Envelopes and Barbed Wire [7]
 \item The article is very hard to read because it uses the Bird --- Meertens formalism
 \end{itemize}
 \end{frame}
@@ -241,8 +228,8 @@ h x (y, z) = (f x y, g x z)
 \frametitle{Towards a more general fold}
 \begin{itemize}
 \item fold operates on lists.  
-\item can we make a fold over recursive datatypes?
-\item let's define a datatype for a tree with 3 different nodes
+\item Can we make a fold over other types of datatypes?
+\item Let's define a \textit{recursive} datatype for a tree with 3 different nodes
 \end{itemize}
 
 \begin{lstlisting}
@@ -276,14 +263,14 @@ someTree = Op1 4 (Op2 3 (Op1 4 Leaf Leaf) Leaf) Leaf
 \begin{itemize}
 \item This form is also called the 'pattern functor' of Tree		
 \item The return type will grow with the depth of the tree 
-\item The goal is to express any tree with a single type	
+\item The goal is to express any tree with a \textit{single type}	
 \end{itemize}
 
 \end{frame}
 
 
 \begin{frame}[fragile]
-\frametitle{Towards a more general fold}
+\frametitle{Fixed point combinator}
 \begin{itemize}
 \item For the purpose of expressing the TreeF with a single type we can use a datatype fixed point combinator
 \item The definition of this combinator is 
@@ -299,7 +286,7 @@ out (In x) = x
 
 \begin{itemize}
 \item The combinator closes the type under repeated applications
-\item It is analogous to the fixed-point equation $x = f (x)$ 	
+\item It is analogous to the fixed point equation $x = f (x)$ 	
 \item The In and out functions have a structure of a function, that is
 
 \end{itemize}
@@ -318,7 +305,7 @@ In :: f (Fix f) -> Fix f
 
 
 \begin{frame}[fragile]
-\frametitle{Towards a more general fold}
+\frametitle{Using the fixed point combinator in Tree}
 \begin{itemize}
 \item Now to get rid of the repeated applications of TreeF to itself we can apply in to In in the type Fix f
 \end{itemize}
@@ -362,11 +349,11 @@ In :: f (Fix f) -> Fix f
 
 
 \begin{frame}[fragile]
-\frametitle{Towards a more general fold}
+\frametitle{TreeF as a functor}
 \begin{itemize}
 \item fold traverses each element in a list and gives back a single value 
 \item In order to evaluate TreeF node we need evaluate it's children
-\item we decouple the evaluation of the node itself and the recursive traversal of it's children	
+\item We decouple the evaluation of the node itself and the recursive traversal of it's children	
 \end{itemize}
 
 \begin{lstlisting}
@@ -378,8 +365,8 @@ instance Functor (TreeF v) where
 
 
 \begin{itemize}
-\item we make a functor out of TreeF where fmap :: Functor f $ \Rightarrow (a \rightarrow b) \rightarrow f a \rightarrow f b$
-\item if we fmap a function on a TreeF value it will propagate this function through the whole tree 
+\item We make a functor out of TreeF where fmap :: Functor f $ \Rightarrow (a \rightarrow b) \rightarrow$ f a $\rightarrow$ f b
+\item If we fmap a function on a TreeF value it will propagate this function through the whole tree 
 \end{itemize}
 
 \end{frame}
@@ -387,10 +374,10 @@ instance Functor (TreeF v) where
 
 
 \begin{frame}[fragile]
-\frametitle{Towards a more general fold}
+\frametitle{Defining an algebra}
 \begin{itemize}
 \item Now we need to define a function for evaluation the nodes in the tree 
-\item we define this function on the TreeF datatype 
+\item We define this function on the TreeF datatype 
 \end{itemize}
 
 \begin{lstlisting}
@@ -417,14 +404,14 @@ intAlg (Op2 v l r) = v * (l - r)
 
 
 \begin{frame}[fragile]
-\frametitle{Theoretic detour}
+\frametitle{Algebra in more detail}
 \begin{itemize}
 \item What exactly is an algebra? 
 \item Let C be a category from the category theory. An algebra of a functor F is a tuple containing an object A (the carrier) in C and a morphism alg:$F(X) \rightarrow X$. 
-\item why was intAlg called an algebra?
-\item the type signature was intAlg :: TreeF Int Int $\rightarrow$ Int
-\item in plain english it was intAlg :: functor type\_used\_in\_functor carrier\_type $\rightarrow$ carrier\_type
-\item in other words it has all the parts an algebra needs: a functor, a carrier and it itself defines a morphism $F(X) \rightarrow X$
+\item Why was intAlg called an algebra?
+\item The type signature was intAlg :: TreeF Int Int $\rightarrow$ Int
+\item In plain english it was intAlg :: functor type\_used\_in\_functor carrier\_type $\rightarrow$ carrier\_type
+\item In other words it has all the parts an algebra needs: a functor, a carrier and it itself defines a morphism $F(X) \rightarrow X$
 \end{itemize}
 
 \end{frame}
@@ -432,7 +419,7 @@ intAlg (Op2 v l r) = v * (l - r)
 
 
 \begin{frame}[fragile]
-\frametitle{Theoretic detour}
+\frametitle{Toward a general fold-like function}
 \begin{itemize}
 \item So far we have a way to traverse the tree and a way to evaluate each node of the tree.
 \item We could already formulate a fold-like function which would collapse the tree into a single value (of the carrier datatype)	
@@ -447,13 +434,13 @@ intAlg (Op2 v l r) = v * (l - r)
 
 
 \begin{frame}[fragile]
-\frametitle{Theoretic detour}
+\frametitle{Toward a general fold-like function}
 \begin{itemize}
 \item If we specify the generalised fold through the algebra and carrier that we defined so far, we would get a function specialised for just that cases
 \item we have to use a more 'generic' algebra, one that would also encompass this one	
 \item How could we find such an algebra?
 \item Recap: Let C be a category froSm the category theory. An algebra of a functor F is a tuple containing an object A (the carrier) in C and a morphism alg:$F(X) \rightarrow X$. 
-\item Hint: we already can hide ANY functor in the Fix datatype, so it's 'genereic' enough
+\item Hint: we already can hide \textbf{any} functor in the Fix datatype, so it's 'generic' enough
 \item Could we somehow use the Fix to create this generalised algebra? What would be the alg morphism and what would be the carrier?
 \item If we remember the contructor of Fix (the In function):	
 \end{itemize}
@@ -480,9 +467,9 @@ In :: f (Fix f) -> Fix f
 
 
 \begin{frame}[fragile]
-\frametitle{Theoretic detour}
+\frametitle{Pictorial representation of algebras}
 
-\begin{block}{my pic}
+\begin{block}{Two algebras}
 \includegraphics[width=0.8\textwidth]{graf1.png}	
 \end{block}
 \begin{itemize}
@@ -498,9 +485,9 @@ In :: f (Fix f) -> Fix f
 
 
 \begin{frame}[fragile]
-\frametitle{Theoretic detour}
+\frametitle{Commutative diagram}
 
-\begin{block}{my pic}
+\begin{block}{Unknown mapping}
 \includegraphics[width=0.8\textwidth]{graf2.png}	
 \end{block}
 \begin{itemize}
@@ -514,9 +501,9 @@ In :: f (Fix f) -> Fix f
 
 
 \begin{frame}[fragile]
-\frametitle{Theoretic detour}
+\frametitle{Commutative diagram}
 
-\begin{block}{my pic}
+\begin{block}{With mapping}
 \includegraphics[width=0.8\textwidth]{graf3.png}	
 \end{block}
 \begin{itemize}
@@ -532,9 +519,9 @@ In :: f (Fix f) -> Fix f
 
 
 \begin{frame}[fragile]
-\frametitle{Theoretic detour}
+\frametitle{Commutative diagram}
 
-\begin{block}{my pic}
+\begin{block}{Inverting the arrow}
 \includegraphics[width=0.8\textwidth]{graf4.png}	
 \end{block}
 \begin{itemize}
@@ -552,7 +539,7 @@ w = alg . (fmap w) . out
 
 
 \begin{frame}[fragile]
-\frametitle{Theoretic detour}
+\frametitle{Defining cata}
 
 \begin{itemize}
 \item Why wouldn't the recursive definition loop forever? w calls w in it's body, so it could loop forever. 
@@ -573,7 +560,7 @@ cata alg = alg . fmap (cata alg) . out
 
 
 \begin{frame}[fragile]
-\frametitle{Theoretic detour}
+\frametitle{A practical example}
 
 \begin{itemize}
 \item We can try the catamorphism on our tree
@@ -609,7 +596,7 @@ print $ cata intAlg exampleTree //265
 
 
 \begin{frame}[fragile]
-\frametitle{Theoretic detour}
+\frametitle{Properties}
 
 \begin{block}{my pic}
 \includegraphics[width=0.2\textwidth]{graf3.png}	
@@ -641,11 +628,11 @@ h . w = w'
 
 
 \begin{frame}[fragile]
-\frametitle{Theoretic detour}
+\frametitle{Limitations}
 
 \begin{itemize}
-\item catamorphisms are part of the datatype generic approch to programming 
-\item generic functions can be used to write serialisers, evaluators, pretty-printers ... 
+\item Catamorphisms are part of the datatype generic approch to programming 
+\item Generic functions can be used to write serialisers [2], evaluators, pretty-printers ... 
 \item The approach deals with datatypes with regular structure.
 \item Different methods have to be used to deal with non-regular datatypes (nested or mutually recursive datatypes) 	
 \item Example of a nested datatype:	
@@ -689,13 +676,13 @@ Cons
 \frametitle{References}
 
 \begin{itemize}
-\item A tutorial on the universality and expressiveness of fold, Graham Hutton, 1999
-\item Generic Storage in Haskell, Sebastiaan Visser, Andres Löh, 2010
-\item When is a function a fold or an unfold?, Jeremy Gibbons, Graham Hutton, Thorsten Altenkirch, 2001
-\item Understanding F-Algebras, blog post on www.fpcomplete.com, Bartosz Milewski, 2013
-\item Catamorphisms, blog post on www.fpcomplete.com, Edward Kmett, 2014
-\item Initial Algebra Semantics is Enough!, Patricia Johann, Neil Ghani, 2007
-\item Functional Programming with Bananas, Lenses, Envelopes and Barbed Wire, Erik Meijer Maarten Fokkinga, Ross Paterson, 1991
+\item [1] A tutorial on the universality and expressiveness of fold, Graham Hutton, 1999
+\item [2] Generic Storage in Haskell, Sebastiaan Visser, Andres Löh, 2010
+\item [3] When is a function a fold or an unfold?, Jeremy Gibbons, Graham Hutton, Thorsten Altenkirch, 2001
+\item [4] Understanding F-Algebras, blog post on www.fpcomplete.com, Bartosz Milewski, 2013
+\item [5] Catamorphisms, blog post on www.fpcomplete.com, Edward Kmett, 2014
+\item [6] Initial Algebra Semantics is Enough!, Patricia Johann, Neil Ghani, 2007
+\item [7] Functional Programming with Bananas, Lenses, Envelopes and Barbed Wire, Erik Meijer Maarten Fokkinga, Ross Paterson, 1991
 \end{itemize}
 
 \end{frame}
