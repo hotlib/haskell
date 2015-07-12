@@ -224,6 +224,9 @@ h x (y, z) = (f x y, g x z)
 
 
 
+
+
+
 \begin{frame}[fragile]
 \frametitle{Towards a more general fold}
 \begin{itemize}
@@ -241,7 +244,14 @@ someTree = Op1 5 (Op2 5 (Op1 6 Leaf Leaf) Leaf) (Op2 7 Leaf Leaf)
        
 \end{lstlisting}
 
+\begin{block}{someTree}
+\includegraphics[width=0.2\textwidth]{tree.png}	
+\end{block}
+
 \end{frame}
+
+
+
 
 \begin{frame}[fragile]
 \frametitle{Towards a more general fold}
@@ -598,7 +608,7 @@ print $ cata intAlg exampleTree //265
 \begin{frame}[fragile]
 \frametitle{Properties}
 
-\begin{block}{my pic}
+\begin{block}{catamorphism}
 \includegraphics[width=0.2\textwidth]{graf3.png}	
 \end{block}
 \begin{itemize}
@@ -668,6 +678,22 @@ Cons
 \end{itemize}
 
 \end{frame}
+
+
+\begin{frame}[fragile]
+\frametitle{Size Matters}
+
+\begin{itemize}
+\item Smaller code bases have fewer bugs
+\item Therefore it is advantageous to strive for less code
+\item There are to trends related to project size	
+\item 1. Concision (syntax, convention over configuration ..), which leads to small improvements
+\item 2. Generality (leads to big improvements) 
+\item The difference of solving problems more \textbf{efficiently} vs. solving problems \textbf{differently}   
+\end{itemize}
+
+\end{frame}
+
 
 
 
