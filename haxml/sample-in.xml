@@ -1,0 +1,16 @@
+<Students>
+	<Student gender="M">
+		<name>Zachary Popme</name>
+		<Address>
+			<street>roma</street>
+			<number>10</number>
+		</Address>
+	</Student>
+	<Student gender="F">
+		<name>Daria Marchenko</name>
+		<Address>
+			<street>uptown</street>
+			<number>4</number>
+		</Address>
+	</Student>
+</Students>
