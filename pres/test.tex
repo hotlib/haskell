@@ -84,7 +84,7 @@ zipWith (+) l1 l2 == count l1 l2 // True
 \begin{itemize}
 \item \textit{fold} is a structured way to go over lists  	
 \item It reduces/processes the input list applying a given function
-\item The signature is $(a \rightarrow b \rightarrow a) \rightarrow  a \rightarrow  [b] -> a$ where the first argument is a
+\item The signature is $(a \rightarrow b \rightarrow a) \rightarrow  a \rightarrow  [b] \rightarrow a$ where the first argument is a
 	function, second argument is a initial value of the accumulator and the third value the list being processed
 \item Through fold one can define other higher order functions like length, map, filter, reverse, sum ...
 \end{itemize}
@@ -160,7 +160,7 @@ filter g (x:xs)
 filter :: (a -> Bool) -> [a] -> [a]
 filter g  [] = [] // h[] = v
 filter g (x:xs) = f x (filter g xs) // h (x:xs) = 
-                                        //    f x (h xs)
+                                    // f x (h xs)
   where 
     f x xs = if g x then x : xs else xs 
 \end{lstlisting}
@@ -446,10 +446,10 @@ intAlg (Op2 v l r) = v * (l - r)
 \begin{frame}[fragile]
 \frametitle{Toward a general fold-like function}
 \begin{itemize}
-\item If we specify the generalised fold through the algebra and carrier that we defined so far, we would get a function specialised for just that cases
+\item If we specify the generalised fold through the algebra and carrier that we defined so far, we would get a function specialised for just that one case
 \item we have to use a more 'generic' algebra, one that would also encompass this one	
 \item How could we find such an algebra?
-\item Recap: Let C be a category froSm the category theory. An algebra of a functor F is a tuple containing an object A (the carrier) in C and a morphism alg:$F(X) \rightarrow X$. 
+\item Recap: Let C be a category from the category theory. An algebra of a functor F is a tuple containing an object A (the carrier) in C and a morphism alg:$F(X) \rightarrow X$. 
 \item Hint: we already can hide \textbf{any} functor in the Fix datatype, so it's 'generic' enough
 \item Could we somehow use the Fix to create this generalised algebra? What would be the alg morphism and what would be the carrier?
 \item If we remember the contructor of Fix (the In function):	
