@@ -1,7 +1,0 @@
-<h2>the homepage
-<a href=@{SurveyR}>Survey
-<a href=@{UsersR}>Users
-<a href=@{SettingsR}>Settings
-<a href=@{ResultsR}>Results
-<a href=@{LogoutR}>Logout
-

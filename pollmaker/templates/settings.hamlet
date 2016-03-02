@@ -1,6 +1,0 @@
-<h1> the settings (change password)
-
-<form id="myform" method="POST">
-    <input name="adminpasswd" type="text">
-    <input type="submit" value="Submit">
-

@@ -1,5 +1,0 @@
-<form method="POST" id="myform">
- <input id="codenum" name="codenum">
- <textarea name="thecodes" id="thecodes" type="text" rows="5" cols="15">
- <input id="addcodes" type="button" value="generate codes">
- <input type="submit" value="save codes">
